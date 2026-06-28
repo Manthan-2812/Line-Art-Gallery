@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Art Gallery — Line and Layer</title>
+    <meta name="description" content="Browse the full artwork collection at Line and Layer Gallery">
+
+    <!-- React 18 -->
+    <script src="https://resource.trickle.so/vendor_lib/unpkg/react@18/umd/react.production.min.js"></script>
+    <script src="https://resource.trickle.so/vendor_lib/unpkg/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel (transpiles JSX in-browser) -->
+    <script src="https://resource.trickle.so/vendor_lib/unpkg/@babel/standalone/babel.min.js"></script>
+    <!-- Framer Motion — accessed via window.Motion -->
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!--
+        Cloudinary Upload Widget SDK.
+        This script is safe to include even before you configure the widget —
+        it only activates when cloudinary.createUploadWidget() is called.
+        Once you have your Cloud Name and Upload Preset, set them in gallery-app.js:
+            const CLOUD_NAME    = 'your_cloud_name';
+            const UPLOAD_PRESET = 'your_unsigned_preset';
+    -->
+    <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
+
+    <!-- EmailJS browser SDK — sends notification emails directly from the browser -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+    <!-- Firebase (compat CDN — no npm/bundler needed) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <style type="text/tailwindcss">
+    @layer base {
+        /* Canvas in gallery-app.js paints the background — keep body dark */
+        html, body {
+            background-color: #080e1d;
+            color: white;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        html { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    }
+
+    @layer utilities {
+        .border-white\/8  { border-color: rgba(255,255,255,0.08); }
+        .border-white\/10 { border-color: rgba(255,255,255,0.10); }
+    }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Utilities must load before components that depend on them -->
+    <script type="text/babel" src="utils/auth.js"></script>
+    <script type="text/babel" src="utils/store.js"></script>
+    <!-- Firebase config + helpers (must load before gallery-app.js) -->
+    <script type="text/babel" src="utils/firebase.js"></script>
+    <!-- EmailJS notification helpers -->
+    <script type="text/babel" src="utils/emailjs-notify.js"></script>
+    <script type="text/babel" src="components/TransitionOverlay.js"></script>
+    <script type="text/babel" src="components/GalleryCard.js"></script>
+    <!-- Admin drag-and-drop upload zone (direct Cloudinary REST upload) -->
+    <script type="text/babel" src="components/FileUploadZone.js"></script>
+    <!-- Gallery page root -->
+    <script type="text/babel" src="gallery-app.js"></script>
+</body>
+</html>
