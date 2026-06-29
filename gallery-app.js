@@ -233,17 +233,18 @@ function GalleryApp() {
                     </motion.div>
                 )}
 
-                {/* Image grid — 3 columns on mobile, 4 on laptop/desktop */}
+                {/* Image grid — masonry columns layout, no blank gaps */}
                 {images.length > 0 ? (
-                    <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+                    <div className="columns-2 sm:columns-3 lg:columns-4 gap-3">
                         {images.map(img => (
-                            <GalleryCard
-                                key={img.id}
-                                image={img}
-                                isAdmin={isAdmin}
-                                onDelete={handleDelete}
-                                onUpdate={handleUpdate}
-                            />
+                            <div key={img.id} style={{ breakInside: 'avoid', marginBottom: '12px' }}>
+                                <GalleryCard
+                                    image={img}
+                                    isAdmin={isAdmin}
+                                    onDelete={handleDelete}
+                                    onUpdate={handleUpdate}
+                                />
+                            </div>
                         ))}
                     </div>
                 ) : (

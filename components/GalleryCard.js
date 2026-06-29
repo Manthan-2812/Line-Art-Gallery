@@ -53,7 +53,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
         saveLikedSet(set);
         setLiked(delta === 1);
         onUpdate(image.id, { ...image, likes: Math.max(0, image.likes + delta) });
-        if (delta === 1) notifyLike(image.url);
     };
 
     // Add comment on Enter key; name is required — shake name field if missing
@@ -72,7 +71,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
         const name    = commentName.trim();
         const comment = { name, text: newComment.trim(), ts: Date.now() };
         onUpdate(image.id, { ...image, comments: [...image.comments, comment] });
-        notifyComment(image.url, name, newComment.trim());
         setNewComment('');
     };
 
@@ -107,7 +105,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
     return (
         <div
             className="relative group bg-slate-800/80 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col transition-all duration-300"
-            style={{ minHeight: '260px' }}
             data-name="GalleryCard"
         >
             {/* Glowing cyan border on hover */}
@@ -130,7 +127,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
             )}
 
             {/* Image with loading spinner */}
-            <div className="flex-1 overflow-hidden relative bg-slate-900 min-h-[180px]">
+            <div className="overflow-hidden relative bg-slate-950">
                 {!imgLoaded && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-7 h-7 border-2 border-slate-600 border-t-cyan-400 rounded-full animate-spin" />
@@ -139,7 +136,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
                 <img
                     src={image.url}
                     alt="Artwork"
-                    className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    className={`w-full h-auto block transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                     onLoad={() => setImgLoaded(true)}
                 />
             </div>

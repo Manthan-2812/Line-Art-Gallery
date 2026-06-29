@@ -1,3 +1,7 @@
+# Sensitive credentials — never commit these
+utils/auth.js
+utils/firebase.js
+
 # Dependencies
 node_modules/
 
