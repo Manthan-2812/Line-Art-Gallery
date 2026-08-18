@@ -12,13 +12,15 @@
 //   imgLoaded    — hides the image until it finishes loading (shows spinner).
 //
 // PROPS:
-//   image    {id, url, likes, comments[]}
-//   isAdmin  {boolean}  — shows the delete button on hover
-//   onDelete {fn(id)}   — parent removes card from state + localStorage
-//   onUpdate {fn(id, updatedImage)} — parent merges updates into state
+//   image          {id, url, likes, comments[], pinned, addedAt}
+//   isAdmin        {boolean}  — shows delete + pin buttons on hover
+//   onDelete       {fn(id)}
+//   onUpdate       {fn(id, updatedImage)}
+//   onPin          {fn(id, currentPinned)}
+//   isNewestRecent {boolean}  — shows "Recently Added" badge
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
+function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, isNewestRecent }) {
     const { useState, useEffect, useRef } = React;
     const { motion, AnimatePresence } = window.Motion;
 
@@ -113,7 +115,24 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
                 style={{ boxShadow: 'inset 0 0 0 2px rgba(56,189,248,0.75), 0 0 22px rgba(56,189,248,0.3)' }}
             />
 
-            {/* Admin: delete button — visible on hover */}
+            {/* Admin: pin button — top-left */}
+            {isAdmin && (
+                <button
+                    onClick={() => onPin(image.id, !!image.pinned)}
+                    className={`absolute top-2 left-2 z-20 p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${image.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${
+                        image.pinned
+                            ? 'bg-amber-400 text-slate-900'
+                            : 'bg-slate-700/80 hover:bg-amber-400 text-white hover:text-slate-900'
+                    }`}
+                    title={image.pinned ? 'Unpin (remove from featured)' : 'Pin to top'}
+                >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <path d="M16 3a1 1 0 0 1 .7 1.7l-1.1 1.1 1.6 4.8 1.5-.5a1 1 0 1 1 .6 1.9l-2 .7-3.3-3.3-.7 2.1A5 5 0 0 1 8 16H7l-3 3-1.4-1.4 3-3v-1a5 5 0 0 1 4.2-4.9l2.1-.7-3.3-3.3.7-2a1 1 0 0 1 1.9.6l-.5 1.5 4.8 1.6 1.1-1.1A1 1 0 0 1 16 3z"/>
+                    </svg>
+                </button>
+            )}
+
+            {/* Admin: delete button — top-right */}
             {isAdmin && (
                 <button
                     onClick={() => onDelete(image.id)}
@@ -124,6 +143,14 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
                         <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
                     </svg>
                 </button>
+            )}
+
+
+            {/* Recently Added badge — above the image, visible to everyone */}
+            {isNewestRecent && (
+                <div className="bg-emerald-600 text-white text-[11px] font-semibold px-3 py-1 text-center tracking-wide">
+                    ✦ Recently Added
+                </div>
             )}
 
             {/* Image with loading spinner */}
@@ -142,7 +169,13 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate }) {
             </div>
 
             {/* Action bar: like toggle + comment toggle */}
-            <div className="bg-slate-900/95 px-3 py-2 flex justify-between items-center z-10 shrink-0 border-t border-white/5">
+            <div className="bg-slate-900/95 px-3 py-2 flex justify-between items-center z-10 shrink-0 border-t border-white/5 relative">
+                {/* Featured badge — centered in action bar, public only */}
+                {image.pinned && !isAdmin && (
+                    <span className="absolute left-1/2 -translate-x-1/2 bg-amber-400 text-slate-900 text-[9px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
+                        ★ Featured
+                    </span>
+                )}
                 <button
                     onClick={handleLike}
                     className={`flex items-center gap-1.5 transition-transform duration-150 hover:scale-110 ${liked ? 'text-pink-400' : 'text-slate-400 hover:text-pink-300'}`}

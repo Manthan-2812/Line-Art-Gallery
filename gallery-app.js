@@ -119,6 +119,21 @@ function GalleryApp() {
     const [images,      setImages]      = useState([]);
     const [isLoaded,    setIsLoaded]    = useState(false);
     const [showUpload,  setShowUpload]  = useState(false);
+    const [showLogin,   setShowLogin]   = useState(false);
+    const [loginEmail,  setLoginEmail]  = useState('');
+    const [loginPass,   setLoginPass]   = useState('');
+    const [loginErr,    setLoginErr]    = useState('');
+
+    const handleLogin = (e) => {
+        e.preventDefault();
+        if (loginAdmin(loginEmail, loginPass)) {
+            setIsAdmin(true);
+            setShowLogin(false);
+            setLoginEmail(''); setLoginPass(''); setLoginErr('');
+        } else {
+            setLoginErr('Invalid email or password.');
+        }
+    };
 
     useEffect(() => {
         let first = true;
@@ -154,9 +169,32 @@ function GalleryApp() {
     // Called by FileUploadZone after each successful Cloudinary upload.
     // Adds a new Firestore doc; onSnapshot prepends card to gallery automatically.
     const handleUploaded = (newImg) => {
-        addImageToFirebase(newImg)
+        addImageToFirebase({ ...newImg, pinned: false, addedAt: Date.now() })
             .catch(err => console.error('[Firebase] add failed:', err));
     };
+
+    // Toggle pinned state for a single image — pinned images sort to the top
+    const handlePin = (id, currentPinned) => {
+        updateImageInFirebase(id, { pinned: !currentPinned })
+            .catch(err => console.error('[Firebase] pin failed:', err));
+    };
+
+    // ── Derived display data ───────────────────────────────────────────────────
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const _now          = Date.now();
+
+    // Pinned images first, then newest-first within each group
+    const sortedImages = [...images].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return (b.addedAt || 0) - (a.addedAt || 0);
+    });
+
+    // ID of the single most-recently-uploaded image within the last 7 days
+    const recentImgs    = images.filter(img => img.addedAt && (_now - img.addedAt) < SEVEN_DAYS_MS);
+    const newestRecentId = recentImgs.length > 0
+        ? recentImgs.reduce((a, b) => a.addedAt > b.addedAt ? a : b).id
+        : null;
 
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
@@ -184,8 +222,38 @@ function GalleryApp() {
                 {/* Centred gradient title — same font style as landing page */}
                 <GalleryTitle />
 
-                {/* Right spacer keeps title visually centred */}
-                <div className="w-[90px] sm:w-[120px] shrink-0" />
+                {/* Right side — admin controls or login button */}
+                <div className="w-[90px] sm:w-[120px] shrink-0 flex justify-end items-center gap-2">
+                    {isAdmin ? (
+                        <>
+                            <button
+                                onClick={() => setShowUpload(v => !v)}
+                                className="flex items-center gap-1 text-xs font-semibold text-cyan-400 hover:text-cyan-300 border border-cyan-400/30 hover:border-cyan-400/70 rounded-lg px-2.5 py-1.5 transition-all"
+                                title="Upload new artwork"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                <span className="hidden sm:inline">Upload</span>
+                            </button>
+                            <button
+                                onClick={() => { logoutAdmin(); setIsAdmin(false); }}
+                                className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-red-400 border border-slate-600/40 hover:border-red-400/50 rounded-lg px-2.5 py-1.5 transition-all"
+                                title="Log out"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                <span className="hidden sm:inline">Logout</span>
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={() => setShowLogin(true)}
+                            className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-cyan-400 border border-slate-600/40 hover:border-cyan-400/50 rounded-lg px-2.5 py-1.5 transition-all"
+                            title="Admin login"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                            <span className="hidden sm:inline">Login</span>
+                        </button>
+                    )}
+                </div>
             </nav>
 
             {/* ── Gallery Content ───────────────────────────────────────────────── */}
@@ -233,16 +301,41 @@ function GalleryApp() {
                     </motion.div>
                 )}
 
-                {/* Image grid — masonry columns layout, no blank gaps */}
+                {/* ── Featured (pinned) row — horizontal scroll on mobile ─────── */}
+                {sortedImages.filter(img => img.pinned).length > 0 && (
+                    <div className="mb-8">
+                        <p className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            <span>★</span> Featured
+                        </p>
+                        <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollSnapType: 'x mandatory' }}>
+                            {sortedImages.filter(img => img.pinned).map(img => (
+                                <div key={img.id} className="shrink-0 w-48 sm:w-56" style={{ scrollSnapAlign: 'start' }}>
+                                    <GalleryCard
+                                        image={img}
+                                        isAdmin={isAdmin}
+                                        onDelete={handleDelete}
+                                        onUpdate={handleUpdate}
+                                        onPin={handlePin}
+                                        isNewestRecent={img.id === newestRecentId}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── All artworks masonry grid ────────────────────────────────── */}
                 {images.length > 0 ? (
                     <div className="columns-2 sm:columns-3 lg:columns-4 gap-3">
-                        {images.map(img => (
+                        {sortedImages.filter(img => !img.pinned).map(img => (
                             <div key={img.id} style={{ breakInside: 'avoid', marginBottom: '12px' }}>
                                 <GalleryCard
                                     image={img}
                                     isAdmin={isAdmin}
                                     onDelete={handleDelete}
                                     onUpdate={handleUpdate}
+                                    onPin={handlePin}
+                                    isNewestRecent={img.id === newestRecentId}
                                 />
                             </div>
                         ))}
@@ -262,6 +355,36 @@ function GalleryApp() {
                     </div>
                 )}
             </main>
+
+            {/* ── Admin Login Modal ──────────────────────────────────────────── */}
+            {showLogin && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+                     onClick={() => { setShowLogin(false); setLoginErr(''); }}>
+                    <div className="w-full max-w-sm rounded-2xl border border-white/10 p-6 shadow-2xl"
+                         style={{ background: 'rgba(15,23,42,0.97)' }}
+                         onClick={e => e.stopPropagation()}>
+                        <h2 className="text-lg font-bold text-white mb-5">Admin Login</h2>
+                        <form onSubmit={handleLogin} className="space-y-3">
+                            <input
+                                type="email" placeholder="Email" required autoFocus
+                                value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
+                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
+                            />
+                            <input
+                                type="password" placeholder="Password" required
+                                value={loginPass} onChange={e => setLoginPass(e.target.value)}
+                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
+                            />
+                            {loginErr && <p className="text-red-400 text-xs">{loginErr}</p>}
+                            <button type="submit"
+                                className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all"
+                                style={{ background: 'linear-gradient(135deg,#06b6d4,#818cf8)' }}>
+                                Login
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
