@@ -303,7 +303,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 className="w-full text-white text-xs font-bold py-2.5 hover:opacity-90 transition-opacity z-10 shrink-0 flex items-center justify-center gap-1.5 shadow-md"
                 style={{ background: 'linear-gradient(90deg,#06b6d4,#6366f1)' }}
             >
-                <span>👕</span>
                 <span>Buy T-Shirt Print</span>
             </button>
 

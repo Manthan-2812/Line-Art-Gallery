@@ -54,9 +54,8 @@ function OrderHistoryDrawer({ isOpen, onClose }) {
                 {/* Header */}
                 <div className="p-6 border-b border-white/10 flex items-center justify-between bg-slate-900/95 shrink-0">
                     <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2.5">
-                            <span>📦</span>
-                            <span>My Orders & Invoices</span>
+                        <h2 className="text-xl sm:text-2xl font-bold text-white">
+                            My Orders & Invoices
                         </h2>
                         <p className="text-sm text-slate-400 mt-0.5">Track fulfillment & download receipts</p>
                     </div>

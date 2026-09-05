@@ -270,10 +270,9 @@ function GalleryApp() {
                     {isSignedIn && (
                         <button
                             onClick={() => setShowOrders(true)}
-                            className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-cyan-400 border border-white/15 hover:border-cyan-400/40 rounded-lg px-2.5 py-1.5 transition-all flex items-center gap-1.5"
+                            className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-cyan-400 border border-white/15 hover:border-cyan-400/40 rounded-lg px-2.5 py-1.5 transition-all"
                         >
-                            <span>📦</span>
-                            <span className="hidden sm:inline">My Orders</span>
+                            <span>My Orders</span>
                         </button>
                     )}
 
