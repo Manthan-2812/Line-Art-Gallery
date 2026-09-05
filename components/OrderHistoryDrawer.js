@@ -41,6 +41,192 @@ function OrderHistoryDrawer({ isOpen, onClose }) {
         if (window.Clerk) window.Clerk.openSignIn({ appearance: window.CLERK_APPEARANCE });
     };
 
+    const printInvoicePDF = (inv) => {
+        if (!inv) return;
+        const printWin = window.open('', '_blank', 'width=800,height=900');
+        if (!printWin) {
+            window.print();
+            return;
+        }
+        const sh = inv.shipping || {};
+        const dateStr = inv.createdAt 
+            ? new Date(inv.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        printWin.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Invoice #${inv.orderId} — Line and Layer Gallery</title>
+                <style>
+                    @page { size: A4 portrait; margin: 15mm; }
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                        background: #ffffff;
+                        color: #0f172a;
+                        margin: 0;
+                        padding: 24px;
+                        line-height: 1.5;
+                    }
+                    .header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        border-bottom: 2px solid #0f172a;
+                        padding-bottom: 16px;
+                        margin-bottom: 24px;
+                    }
+                    .brand {
+                        font-size: 22px;
+                        font-weight: 800;
+                        letter-spacing: -0.5px;
+                        color: #0f172a;
+                    }
+                    .tagline {
+                        font-size: 11px;
+                        color: #64748b;
+                        margin-top: 2px;
+                    }
+                    .invoice-title {
+                        text-align: right;
+                    }
+                    .badge {
+                        display: inline-block;
+                        background: #ecfdf5;
+                        color: #059669;
+                        font-size: 11px;
+                        font-weight: 700;
+                        padding: 3px 8px;
+                        border-radius: 9999px;
+                        margin-bottom: 4px;
+                    }
+                    .meta-text {
+                        font-size: 12px;
+                        color: #475569;
+                    }
+                    .grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                        background: #f8fafc;
+                        padding: 16px;
+                        border-radius: 8px;
+                        border: 1px solid #e2e8f0;
+                        margin-bottom: 24px;
+                        font-size: 13px;
+                    }
+                    .label {
+                        font-size: 11px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        color: #64748b;
+                        margin-bottom: 4px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 24px;
+                        font-size: 13px;
+                    }
+                    th {
+                        background: #f1f5f9;
+                        text-align: left;
+                        padding: 10px 12px;
+                        font-weight: 700;
+                        color: #334155;
+                        border-bottom: 1px solid #cbd5e1;
+                    }
+                    td {
+                        padding: 12px;
+                        border-bottom: 1px solid #e2e8f0;
+                    }
+                    .total-row td {
+                        font-weight: 800;
+                        font-size: 15px;
+                        border-top: 2px solid #0f172a;
+                        border-bottom: none;
+                    }
+                    .footer {
+                        text-align: center;
+                        font-size: 11px;
+                        color: #94a3b8;
+                        margin-top: 40px;
+                        border-top: 1px solid #e2e8f0;
+                        padding-top: 16px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div>
+                        <div class="brand">Line and Layer Gallery</div>
+                        <div class="tagline">Where strokes meet dimensions • line-art-gallery.netlify.app</div>
+                        <div class="meta-text" style="margin-top: 8px;">Order #${inv.orderId}</div>
+                    </div>
+                    <div class="invoice-title">
+                        <span class="badge">Payment Confirmed</span>
+                        <div class="meta-text"><strong>Date:</strong> ${dateStr}</div>
+                        <div class="meta-text"><strong>Payment ID:</strong> ${inv.paymentId}</div>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <div>
+                        <div class="label">Billed & Shipped To</div>
+                        <strong>${sh.fullName || 'Valued Customer'}</strong><br/>
+                        ${sh.address1 || ''}${sh.address2 ? ', ' + sh.address2 : ''}<br/>
+                        ${sh.city || ''}${sh.state ? ', ' + sh.state : ''} ${sh.pincode ? ' - ' + sh.pincode : ''}<br/>
+                        ${sh.phone ? 'Phone: ' + sh.phone + '<br/>' : ''}
+                        ${inv.email ? 'Email: ' + inv.email : ''}
+                    </div>
+                    <div>
+                        <div class="label">Fulfillment Details</div>
+                        <strong>Status:</strong> ${inv.fulfillment === 'submitted' ? 'Sent for Printing & Framing (QikInk)' : 'Payment Verified'}<br/>
+                        <strong>Carrier:</strong> QikInk Shipping (Prepaid)<br/>
+                        <strong>Estimated Delivery:</strong> 5–7 Business Days
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Artwork Item</th>
+                            <th style="text-align:center;">Format / Specs</th>
+                            <th style="text-align:center;">Qty</th>
+                            <th style="text-align:right;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>${inv.artName || 'Art Print'}</strong></td>
+                            <td style="text-align:center;">${inv.sku || 'T-Shirt Print'}</td>
+                            <td style="text-align:center;">1</td>
+                            <td style="text-align:right;">₹${inv.amount}</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="3" style="text-align:right;">Total Paid:</td>
+                            <td style="text-align:right;">₹${inv.amount}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="footer">
+                    Thank you for supporting independent art! For support or inquiries, contact manthanparekh9d@gmail.com
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() { window.print(); }, 250);
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        printWin.document.close();
+    };
+
     return (
         <div className="fixed inset-0 z-[70] flex justify-end">
             {/* Backdrop */}
@@ -209,7 +395,7 @@ function OrderHistoryDrawer({ isOpen, onClose }) {
                         </div>
 
                         <button
-                            onClick={() => window.print()}
+                            onClick={() => printInvoicePDF(selectedInvoice)}
                             className="w-full py-4 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-2xl text-sm sm:text-base transition-all shadow-lg flex items-center justify-center gap-2"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
