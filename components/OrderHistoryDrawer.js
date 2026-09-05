@@ -162,25 +162,31 @@ function OrderHistoryDrawer({ isOpen, onClose }) {
 
                 {/* Invoice Modal Preview inside Drawer */}
                 {selectedInvoice && (
-                    <div className="absolute inset-0 bg-slate-950/98 z-20 flex flex-col p-6 overflow-y-auto">
-                        <div className="flex justify-between items-center pb-4 border-b border-white/10 mb-5">
-                            <h3 className="text-lg font-extrabold text-white">Invoice Details</h3>
+                    <div className="absolute inset-0 bg-slate-950 z-30 flex flex-col p-6 overflow-y-auto">
+                        <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-5 shrink-0">
+                            <div>
+                                <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                                    <span>🧾</span>
+                                    <span>Invoice Details</span>
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">Order #{selectedInvoice.orderId.slice(-12)}</p>
+                            </div>
                             <button
                                 onClick={() => setSelectedInvoice(null)}
-                                className="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+                                className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-white px-3.5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors shrink-0"
                             >
                                 &larr; Back to List
                             </button>
                         </div>
 
                         <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 text-sm text-slate-300 space-y-3.5 mb-6 shadow-xl">
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span className="text-slate-400">Order ID:</span>
-                                <span className="font-mono text-white font-semibold">{selectedInvoice.orderId}</span>
+                                <span className="font-mono text-white font-semibold text-xs sm:text-sm break-all">{selectedInvoice.orderId}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                                 <span className="text-slate-400">Payment ID:</span>
-                                <span className="font-mono text-cyan-400">{selectedInvoice.paymentId}</span>
+                                <span className="font-mono text-cyan-400 text-xs sm:text-sm break-all">{selectedInvoice.paymentId}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-400">Artwork:</span>
