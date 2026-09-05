@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Netlify configuration — Line and Layer Art Gallery
+#
+# The existing static site (index.html, gallery.html, *.js) is served AS-IS from
+# the project root. Serverless backend logic lives in netlify/functions/ and is
+# reachable at:  /.netlify/functions/<name>   (or the /api/* alias below)
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build]
+  # Static site root — no build step; files are served directly.
+  publish = "."
+  # Serverless function source directory.
+  functions = "netlify/functions"
+
+[functions]
+  # esbuild bundles each function + its node_modules deps automatically.
+  node_bundler = "esbuild"
+  # firebase-admin uses dynamic requires — ship it as-is instead of bundling.
+  external_node_modules = ["firebase-admin"]
+
+# Friendly alias:  /api/health  ->  /.netlify/functions/health
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Local dev server (netlify dev): serves static files + functions together.
+[dev]
+  publish = "."
+  port = 8888
+  framework = "#static"

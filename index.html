@@ -7,6 +7,12 @@
     <meta name="description" content="Line and Layer Gallery — an interactive art portfolio with dynamic animations">
     <meta name="keywords"    content="art, portfolio, gallery, line and layer, digital art">
 
+    <!-- Preconnect to CDNs for speed -->
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
+    <link rel="preconnect" href="https://resource.trickle.so" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+
     <!-- React 18 -->
     <script src="https://resource.trickle.so/vendor_lib/unpkg/react@18/umd/react.production.min.js"></script>
     <script src="https://resource.trickle.so/vendor_lib/unpkg/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -14,8 +20,11 @@
     <script src="https://resource.trickle.so/vendor_lib/unpkg/@babel/standalone/babel.min.js"></script>
     <!-- Framer Motion — accessed via window.Motion -->
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    <!-- Tailwind CSS (CDN) -->
+        <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase (compat CDN) — for live metric counters -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
     <style type="text/tailwindcss">
     @layer base {
@@ -49,13 +58,21 @@
 <body>
     <div id="root"></div>
 
+    <!-- Clerk (customer auth) — plain script, runs immediately & injects the SDK -->
+    <script src="utils/clerk-config.js"></script>
+
     <!-- Load utilities first so functions are available to components -->
     <script type="text/babel" src="utils/auth.js"></script>
+    <script type="text/babel" src="components/ClerkAuth.js"></script>
     <script type="text/babel" src="components/Navbar.js"></script>
+    <script type="text/babel" src="components/AddressModal.js"></script>
+    <script type="text/babel" src="components/OrderHistoryDrawer.js"></script>
     <script type="text/babel" src="components/TransitionOverlay.js"></script>
     <!-- Hero draggable cards + About Me pixelated portrait -->
     <script type="text/babel" src="components/DraggableCards.js"></script>
     <script type="text/babel" src="components/PixelatedCanvas.js"></script>
+        <!-- Firestore helpers — live metric counters -->
+    <script type="text/babel" src="utils/firebase.js"></script>
     <!-- Main landing page app -->
     <script type="text/babel" src="app.js"></script>
 </body>

@@ -1,0 +1,19 @@
+{
+  "name": "line-and-layer-gallery",
+  "version": "1.0.0",
+  "description": "Line and Layer Art Gallery — commercial art print e-commerce (static frontend + Netlify Functions backend)",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev",
+    "functions": "netlify functions:serve",
+    "health": "curl http://localhost:8888/.netlify/functions/health"
+  },
+  "dependencies": {
+    "@clerk/backend": "^1.21.6",
+    "razorpay": "^2.9.5",
+    "firebase-admin": "^12.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

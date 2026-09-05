@@ -124,6 +124,8 @@ function DraggableCards() {
                             <img
                                 src={card.src}
                                 alt={card.label}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-contain"
                                 draggable={false}
                                 onError={e => {

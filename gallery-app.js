@@ -111,29 +111,59 @@ function GalleryTitle() {
     );
 }
 
+const ADMIN_EMAILS = [
+    'manthanparekh9d@gmail.com',
+    'parekhmanthan9d@gmail.com',
+    'manthanparekh.recovery@gmail.com'
+];
+
 function GalleryApp() {
     const { useState, useEffect } = React;
     const { motion } = window.Motion;
+    const userState = window.useClerkUser ? window.useClerkUser() : { isSignedIn: false, user: null };
+    const isSignedIn = userState.isSignedIn;
 
-    const [isAdmin,     setIsAdmin]     = useState(checkIsAdmin());
+    const [isAdmin,     setIsAdmin]     = useState(false);
     const [images,      setImages]      = useState([]);
     const [isLoaded,    setIsLoaded]    = useState(false);
     const [showUpload,  setShowUpload]  = useState(false);
-    const [showLogin,   setShowLogin]   = useState(false);
-    const [loginEmail,  setLoginEmail]  = useState('');
-    const [loginPass,   setLoginPass]   = useState('');
-    const [loginErr,    setLoginErr]    = useState('');
+    const [showOrders,  setShowOrders]  = useState(false);
+    const [userLikes,   setUserLikes]   = useState(new Set());
 
-    const handleLogin = (e) => {
-        e.preventDefault();
-        if (loginAdmin(loginEmail, loginPass)) {
-            setIsAdmin(true);
-            setShowLogin(false);
-            setLoginEmail(''); setLoginPass(''); setLoginErr('');
-        } else {
-            setLoginErr('Invalid email or password.');
-        }
-    };
+    // Sync admin status and user-specific likes from Clerk authentication
+    useEffect(() => {
+        if (!window.__clerkReady) return;
+        let unsubClerk;
+        window.__clerkReady.then((clerk) => {
+            const syncUser = async () => {
+                if (clerk.user) {
+                    const emails = (clerk.user.emailAddresses || []).map(e => (e.emailAddress || '').toLowerCase());
+                    const isAdm = emails.some(e => ADMIN_EMAILS.includes(e));
+                    setIsAdmin(isAdm);
+
+                    try {
+                        const token = await clerk.session.getToken();
+                        const res = await fetch('/api/get-user-likes', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const data = await res.json();
+                        const s = new Set(data.likedArtworks || []);
+                        window.__userLikedIds = s;
+                        setUserLikes(s);
+                    } catch (e) {
+                        console.error('Failed to load user likes:', e);
+                    }
+                } else {
+                    setIsAdmin(false);
+                    window.__userLikedIds = new Set();
+                    setUserLikes(new Set());
+                }
+            };
+            syncUser();
+            unsubClerk = clerk.addListener(syncUser);
+        });
+        return () => { if (typeof unsubClerk === 'function') unsubClerk(); };
+    }, []);
 
     useEffect(() => {
         let first = true;
@@ -177,6 +207,18 @@ function GalleryApp() {
     const handlePin = (id, currentPinned) => {
         updateImageInFirebase(id, { pinned: !currentPinned })
             .catch(err => console.error('[Firebase] pin failed:', err));
+    };
+    
+    // Rename an artwork — admin only; persists the custom name to Firestore
+    const handleRename = (id, newName) => {
+        updateImageInFirebase(id, { name: newName })
+            .catch(err => console.error('[Firebase] rename failed:', err));
+    };
+
+    // Update artwork price — admin only; persists custom price to Firestore
+    const handleUpdatePrice = (id, newPrice) => {
+        updateImageInFirebase(id, { price: Number(newPrice) })
+            .catch(err => console.error('[Firebase] update price failed:', err));
     };
 
     // ── Derived display data ───────────────────────────────────────────────────
@@ -222,36 +264,26 @@ function GalleryApp() {
                 {/* Centred gradient title — same font style as landing page */}
                 <GalleryTitle />
 
-                {/* Right side — admin controls or login button */}
-                <div className="w-[90px] sm:w-[120px] shrink-0 flex justify-end items-center gap-2">
-                    {isAdmin ? (
-                        <>
-                            <button
-                                onClick={() => setShowUpload(v => !v)}
-                                className="flex items-center gap-1 text-xs font-semibold text-cyan-400 hover:text-cyan-300 border border-cyan-400/30 hover:border-cyan-400/70 rounded-lg px-2.5 py-1.5 transition-all"
-                                title="Upload new artwork"
-                            >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                <span className="hidden sm:inline">Upload</span>
-                            </button>
-                            <button
-                                onClick={() => { logoutAdmin(); setIsAdmin(false); }}
-                                className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-red-400 border border-slate-600/40 hover:border-red-400/50 rounded-lg px-2.5 py-1.5 transition-all"
-                                title="Log out"
-                            >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                                <span className="hidden sm:inline">Logout</span>
-                            </button>
-                        </>
-                    ) : (
+                {/* Right side — My Orders + customer auth (Clerk) + admin controls */}
+                <div className="shrink-0 flex justify-end items-center gap-2">
+                    {/* My Orders button — only shown when signed in */}
+                    {isSignedIn && (
                         <button
-                            onClick={() => setShowLogin(true)}
-                            className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-cyan-400 border border-slate-600/40 hover:border-cyan-400/50 rounded-lg px-2.5 py-1.5 transition-all"
-                            title="Admin login"
+                            onClick={() => setShowOrders(true)}
+                            className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-cyan-400 border border-white/15 hover:border-cyan-400/40 rounded-lg px-2.5 py-1.5 transition-all flex items-center gap-1.5"
                         >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                            <span className="hidden sm:inline">Login</span>
+                            <span>📦</span>
+                            <span className="hidden sm:inline">My Orders</span>
                         </button>
+                    )}
+
+                    {/* Customer authentication (Clerk) */}
+                    <ClerkAuthButton compact={true} />
+
+                    {isAdmin && (
+                        <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 uppercase">
+                            Admin Active
+                        </span>
                     )}
                 </div>
             </nav>
@@ -316,6 +348,8 @@ function GalleryApp() {
                                         onDelete={handleDelete}
                                         onUpdate={handleUpdate}
                                         onPin={handlePin}
+                                        onRename={handleRename}
+                                        onUpdatePrice={handleUpdatePrice}
                                         isNewestRecent={img.id === newestRecentId}
                                     />
                                 </div>
@@ -335,6 +369,8 @@ function GalleryApp() {
                                     onDelete={handleDelete}
                                     onUpdate={handleUpdate}
                                     onPin={handlePin}
+                                    onRename={handleRename}
+                                    onUpdatePrice={handleUpdatePrice}
                                     isNewestRecent={img.id === newestRecentId}
                                 />
                             </div>
@@ -356,34 +392,12 @@ function GalleryApp() {
                 )}
             </main>
 
-            {/* ── Admin Login Modal ──────────────────────────────────────────── */}
-            {showLogin && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
-                     onClick={() => { setShowLogin(false); setLoginErr(''); }}>
-                    <div className="w-full max-w-sm rounded-2xl border border-white/10 p-6 shadow-2xl"
-                         style={{ background: 'rgba(15,23,42,0.97)' }}
-                         onClick={e => e.stopPropagation()}>
-                        <h2 className="text-lg font-bold text-white mb-5">Admin Login</h2>
-                        <form onSubmit={handleLogin} className="space-y-3">
-                            <input
-                                type="email" placeholder="Email" required autoFocus
-                                value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
-                            />
-                            <input
-                                type="password" placeholder="Password" required
-                                value={loginPass} onChange={e => setLoginPass(e.target.value)}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
-                            />
-                            {loginErr && <p className="text-red-400 text-xs">{loginErr}</p>}
-                            <button type="submit"
-                                className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-all"
-                                style={{ background: 'linear-gradient(135deg,#06b6d4,#818cf8)' }}>
-                                Login
-                            </button>
-                        </form>
-                    </div>
-                </div>
+            {/* Order History Drawer */}
+            {window.OrderHistoryDrawer && (
+                <window.OrderHistoryDrawer
+                    isOpen={showOrders}
+                    onClose={() => setShowOrders(false)}
+                />
             )}
         </div>
     );

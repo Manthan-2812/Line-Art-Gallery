@@ -117,14 +117,58 @@ const LETTER_COLORS = [
 ];
 const TITLE = 'Line and Layer Gallery';
 
+// ── MetricsBar ────────────────────────────────────────────────────────────────
+// Live site stats read from Firestore (stats/metrics). Updates in real time.
+function MetricsBar() {
+    const { useState, useEffect } = React;
+    const [metrics, setMetrics] = useState({ totalOrders: 0, delivered: 0, totalRatingStars: 0, totalRatingsCount: 0 });
+
+    useEffect(() => {
+        if (typeof subscribeToMetrics !== 'function') return;
+        const unsub = subscribeToMetrics(setMetrics);
+        return () => { if (typeof unsub === 'function') unsub(); };
+    }, []);
+
+    const count = metrics.totalRatingsCount || 0;
+    const avg = count > 0 ? (metrics.totalRatingStars / count).toFixed(1) : '0';
+
+    const items = [
+        { label: 'Total Orders', value: metrics.totalOrders || 0, color: '#22d3ee' },
+        { label: 'Delivered',    value: metrics.delivered || metrics.totalOrders || 0, color: '#4ade80' },
+        { label: 'Avg Rating',   value: avg, sub: count > 0 ? `(${count} reviews)` : '(0 reviews)', color: '#f472b6', isRating: true }
+    ];
+
+    return (
+        <section className="relative z-10 py-14 px-6" data-name="metrics">
+            <div className="max-w-4xl mx-auto grid grid-cols-3 gap-3 sm:gap-8">
+                {items.map(it => (
+                    <div
+                        key={it.label}
+                        className="text-center rounded-2xl border border-white/10 py-6 px-2"
+                        style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)' }}
+                    >
+                        <div
+                            className="text-3xl sm:text-5xl font-extrabold tabular-nums"
+                            style={{ color: it.color, textShadow: `0 0 20px ${it.color}55` }}
+                        >
+                            {it.value}
+                            {it.isRating && <span className="text-xl sm:text-2xl text-amber-300"> ★</span>}
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest mt-2">
+                            {it.label} {it.sub ? <span className="normal-case text-[9px] text-slate-500 block">{it.sub}</span> : ''}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+
 function App() {
     const { useState, useEffect, useRef } = React;
     const { motion, AnimatePresence } = window.Motion;
 
-    const [isAdmin,       setIsAdmin]       = useState(checkIsAdmin());
-    const [showLogin,     setShowLogin]     = useState(false);
-    const [email,         setEmail]         = useState('');
-    const [password,      setPassword]      = useState('');
     const [isLoaded,      setIsLoaded]      = useState(false);
     const [titleHovered,  setTitleHovered]  = useState(false);
     const [showHand,      setShowHand]      = useState(false);
@@ -144,24 +188,6 @@ function App() {
             if (aboutRef.current) aboutRef.current.scrollIntoView({ behavior: 'smooth' });
         }, 150);
         setTimeout(() => setShowHand(false), 950);
-    };
-
-    // ── Admin handlers ─────────────────────────────────────────────────────────
-    const handleLogin = (e) => {
-        e.preventDefault();
-        if (loginAdmin(email, password)) {
-            setIsAdmin(true);
-            setShowLogin(false);
-            setEmail('');
-            setPassword('');
-        } else {
-            alert('Invalid credentials.\nHint: admin@gallery.com / artgallery2025');
-        }
-    };
-
-    const handleLogout = () => {
-        logoutAdmin();
-        setIsAdmin(false);
     };
 
     const navigateToGallery = () => TriggerTransition('gallery.html');
@@ -207,9 +233,6 @@ function App() {
             <TransitionOverlay isVisible={!isLoaded} />
 
             <Navbar
-                isAdmin={isAdmin}
-                onLoginClick={() => setShowLogin(true)}
-                onLogout={handleLogout}
                 onAboutClick={handleArrowClick}
             />
 
@@ -392,6 +415,9 @@ function App() {
                 </motion.div>
             </section>
 
+            {/* ── Live site metrics — Total Orders / Delivered / Avg Rating ─────── */}
+<MetricsBar />
+
             {/* ── About Section — normal page flow, user scrolls down to reach it */}
             <section
                 id="about-section"
@@ -513,69 +539,6 @@ function App() {
                     </div>
                 </div>
             </section>
-
-            {/* ── Admin Login Modal ──────────────────────────────────────────────── */}
-            <AnimatePresence>
-                {showLogin && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-                        onClick={e => e.target === e.currentTarget && setShowLogin(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, y: 16 }}
-                            animate={{ scale: 1,   y: 0  }}
-                            exit={{    scale: 0.9, y: 16 }}
-                            transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-                            className="w-full max-w-md p-8 rounded-2xl border border-slate-700/80 shadow-2xl"
-                            style={{ background: 'rgba(15,23,42,0.96)', backdropFilter: 'blur(16px)' }}
-                        >
-                            <div className="flex justify-between items-center mb-7">
-                                <h3 className="text-2xl font-bold"
-                                    style={{ background: 'linear-gradient(90deg,#22d3ee,#a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                                    Admin Login
-                                </h3>
-                                <button onClick={() => setShowLogin(false)} className="text-slate-400 hover:text-white transition p-1">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                        <line x1="18" y1="6" x2="6"  y2="18"/>
-                                        <line x1="6"  y1="6" x2="18" y2="18"/>
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleLogin} className="space-y-5">
-                                <div>
-                                    <label className="block text-[11px] text-slate-400 mb-1.5 uppercase tracking-widest">Email</label>
-                                    <input
-                                        type="email" value={email}
-                                        onChange={e => setEmail(e.target.value)}
-                                        placeholder="admin@gallery.com"
-                                        className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-cyan-400 transition-colors"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] text-slate-400 mb-1.5 uppercase tracking-widest">Password</label>
-                                    <input
-                                        type="password" value={password}
-                                        onChange={e => setPassword(e.target.value)}
-                                        placeholder="••••••••••"
-                                        className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-cyan-400 transition-colors"
-                                        required
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="w-full font-bold py-3 rounded-lg text-slate-900 transition-all mt-1"
-                                    style={{ background: 'linear-gradient(90deg,#22d3ee,#818cf8)', boxShadow: '0 0 22px rgba(34,211,238,0.35)' }}
-                                >
-                                    Login
-                                </button>
-                            </form>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* Keyframe for per-letter typewriter fade-up animation */}
             <style dangerouslySetInnerHTML={{__html:`

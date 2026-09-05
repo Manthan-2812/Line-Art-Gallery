@@ -1,93 +1,143 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // components/GalleryCard.js
 //
-// STATE FLOW:
-//   liked        — whether THIS browser session has liked this image.
-//                  Initialised from getLikedSet() on mount.
-//                  Toggling updates both the Set (localStorage) and the global
-//                  like count via onUpdate().
-//   showComments — toggles the inline comment panel that slides up from the
-//                  bottom of the card (does NOT cover the image — sits below).
-//   newComment   — controlled input for the comment field.
-//   imgLoaded    — hides the image until it finishes loading (shows spinner).
-//
-// PROPS:
-//   image          {id, url, likes, comments[], pinned, addedAt}
-//   isAdmin        {boolean}  — shows delete + pin buttons on hover
-//   onDelete       {fn(id)}
-//   onUpdate       {fn(id, updatedImage)}
-//   onPin          {fn(id, currentPinned)}
-//   isNewestRecent {boolean}  — shows "Recently Added" badge
+// Gallery Card Component:
+//   • Liked state (synced with user account / localStorage)
+//   • T-Shirt buy modal with Color & Size selection
+//   • Admin controls (Pin, Rename, Delete)
+//   • Responsive image loading with Cloudinary auto-format & lazy loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, isNewestRecent }) {
+function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUpdatePrice, isNewestRecent }) {
     const { useState, useEffect, useRef } = React;
-    const { motion, AnimatePresence } = window.Motion;
 
-    // Initialise liked state from the persistent Set in localStorage
-    const [liked, setLiked]               = useState(() => getLikedSet().has(image.id));
-    const [showComments, setShowComments] = useState(false);
-    const [newComment,   setNewComment]   = useState('');
-    const [commentName,  setCommentName]  = useState('');
-    const [imgLoaded,    setImgLoaded]    = useState(false);
-    const commentInputRef                 = useRef(null);
-    const nameInputRef                    = useRef(null);
-
-    // Re-sync if a parent re-renders this card with a different image.id
-    useEffect(() => {
-        setLiked(getLikedSet().has(image.id));
-    }, [image.id]);
-
-    // Auto-focus the name input when panel opens
-    useEffect(() => {
-        if (showComments && nameInputRef.current) {
-            setTimeout(() => nameInputRef.current && nameInputRef.current.focus(), 150);
+    // Initialise liked state from user-specific Set or local Set
+    const isArtLiked = () => {
+        if (window.__userLikedIds && window.__userLikedIds instanceof Set) {
+            return window.__userLikedIds.has(image.id);
         }
-    }, [showComments]);
-
-    // ── Handlers ──────────────────────────────────────────────────────────────
-
-    // Toggle like: flip session Set + adjust global count by ±1
-    const handleLike = () => {
-        const set   = getLikedSet();
-        const delta = set.has(image.id) ? -1 : 1;
-        delta === -1 ? set.delete(image.id) : set.add(image.id);
-        saveLikedSet(set);
-        setLiked(delta === 1);
-        onUpdate(image.id, { ...image, likes: Math.max(0, image.likes + delta) });
+        return getLikedSet().has(image.id);
     };
 
-    // Add comment on Enter key; name is required — shake name field if missing
-    const handleAddComment = (e) => {
-        if (e.key !== 'Enter' || !newComment.trim()) return;
-        if (!commentName.trim()) {
-            if (nameInputRef.current) {
-                nameInputRef.current.focus();
-                nameInputRef.current.style.borderColor = '#f87171';
-                setTimeout(() => {
-                    if (nameInputRef.current) nameInputRef.current.style.borderColor = '';
-                }, 1200);
+    const currentPrice = (image.price !== undefined && image.price !== null && !isNaN(Number(image.price))) 
+        ? Number(image.price) 
+        : 900;
+
+    const [liked, setLiked]                 = useState(isArtLiked);
+    const [imgLoaded, setImgLoaded]         = useState(false);
+    const [editingName, setEditingName]     = useState(false);
+    const [nameDraft, setNameDraft]         = useState('');
+    const [editingPrice, setEditingPrice]   = useState(false);
+    const [priceDraft, setPriceDraft]       = useState(currentPrice);
+    const titleInputRef                     = useRef(null);
+    const priceInputRef                     = useRef(null);
+    
+    // Purchase modal state: selected Color & Size
+    const [showBuy, setShowBuy]             = useState(false);
+    const [selectedColor, setSelectedColor] = useState('Wh');
+    const [selectedSize, setSelectedSize]   = useState('M');
+
+    // Re-sync if a parent re-renders this card with a different image.id or likes change
+    useEffect(() => {
+        setLiked(isArtLiked());
+    }, [image.id, window.__userLikedIds]);
+
+    useEffect(() => {
+        setPriceDraft(currentPrice);
+    }, [image.price]);
+
+    // Auto-select title text when entering rename mode (admin)
+    useEffect(() => {
+        if (editingName && titleInputRef.current) {
+            setTimeout(() => titleInputRef.current && titleInputRef.current.select(), 50);
+        }
+    }, [editingName]);
+
+    // Auto-select price input when editing price (admin)
+    useEffect(() => {
+        if (editingPrice && priceInputRef.current) {
+            setTimeout(() => priceInputRef.current && priceInputRef.current.select(), 50);
+        }
+    }, [editingPrice]);
+
+    const artworkName = image.name || 'Untitled Artwork';
+
+    // Admin rename: enter edit mode, persist on save
+    const startEditName = () => { setNameDraft(image.name || ''); setEditingName(true); };
+    const saveName = () => {
+        const trimmed = nameDraft.trim();
+        setEditingName(false);
+        if (onRename && trimmed !== (image.name || '')) {
+            onRename(image.id, trimmed || 'Untitled Artwork');
+        }
+    };
+
+    // Admin price edit
+    const startEditPrice = () => { setPriceDraft(currentPrice); setEditingPrice(true); };
+    const savePrice = () => {
+        setEditingPrice(false);
+        const parsed = Number(priceDraft);
+        if (!isNaN(parsed) && parsed > 0 && parsed !== currentPrice) {
+            if (onUpdatePrice) onUpdatePrice(image.id, parsed);
+        }
+    };
+
+    // Navigate to checkout with chosen SKU and artwork price
+    const proceedToCheckout = () => {
+        const sku = `MVnHs-${selectedColor}-${selectedSize}`;
+        const colorObj = (window.PRODUCT_COLORS || []).find(c => c.id === selectedColor);
+        const colorName = colorObj ? colorObj.name : 'Classic White';
+        
+        const params = new URLSearchParams({
+            art:   image.id,
+            name:  artworkName,
+            img:   image.url,
+            sku:   sku,
+            price: String(currentPrice),
+            color: colorName,
+            size:  selectedSize
+        });
+        window.location.href = `checkout.html?${params.toString()}`;
+    };
+
+    // Toggle like: account-based if signed in with Clerk, or fallback to local
+    const handleLike = async () => {
+        if (window.Clerk && window.Clerk.user) {
+            try {
+                const token = await window.Clerk.session.getToken();
+                const res = await fetch('/api/toggle-like', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ artId: image.id })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    const nowLiked = data.liked;
+                    setLiked(nowLiked);
+                    if (!window.__userLikedIds) window.__userLikedIds = new Set();
+                    nowLiked ? window.__userLikedIds.add(image.id) : window.__userLikedIds.delete(image.id);
+                }
+            } catch (err) {
+                console.error('Failed to toggle like:', err);
             }
-            return;
+        } else {
+            if (window.Clerk) {
+                window.Clerk.openSignIn({ appearance: window.CLERK_APPEARANCE });
+            } else {
+                const set   = getLikedSet();
+                const delta = set.has(image.id) ? -1 : 1;
+                delta === -1 ? set.delete(image.id) : set.add(image.id);
+                saveLikedSet(set);
+                setLiked(delta === 1);
+                onUpdate(image.id, { ...image, likes: Math.max(0, image.likes + delta) });
+            }
         }
-        const name    = commentName.trim();
-        const comment = { name, text: newComment.trim(), ts: Date.now() };
-        onUpdate(image.id, { ...image, comments: [...image.comments, comment] });
-        setNewComment('');
     };
 
-    // Render comment with @name attribution; handles legacy string-only comments
-    const renderComment = (c) => {
-        if (typeof c === 'string') return c;
-        return (
-            <span>
-                <span className="font-semibold text-cyan-400">@{c.name} </span>
-                <span>{c.text}</span>
-            </span>
-        );
-    };
-
-    // ── SVG Heart (filled when liked, outline when not) ───────────────────────
+    // Heart Icon
     const HeartIcon = ({ filled }) => (
         <svg
             width="18" height="18"
@@ -103,18 +153,16 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, isNewestRecent
         </svg>
     );
 
-    // ── Render ─────────────────────────────────────────────────────────────────
+    // Optimized Cloudinary thumbnail URL (auto-format WebP/AVIF, auto-quality, scaled width)
+    const optimizedImageUrl = (typeof getPrintMasterUrl === 'function') 
+        ? image.url.replace('/upload/', '/upload/f_auto,q_auto,w_800/') 
+        : image.url;
+
     return (
         <div
             className="relative group bg-slate-800/80 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col transition-all duration-300"
             data-name="GalleryCard"
         >
-            {/* Glowing cyan border on hover */}
-            <div
-                className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10"
-                style={{ boxShadow: 'inset 0 0 0 2px rgba(56,189,248,0.75), 0 0 22px rgba(56,189,248,0.3)' }}
-            />
-
             {/* Admin: pin button — top-left */}
             {isAdmin && (
                 <button
@@ -124,10 +172,11 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, isNewestRecent
                             ? 'bg-amber-400 text-slate-900'
                             : 'bg-slate-700/80 hover:bg-amber-400 text-white hover:text-slate-900'
                     }`}
-                    title={image.pinned ? 'Unpin (remove from featured)' : 'Pin to top'}
+                    title={image.pinned ? 'Unpin' : 'Pin to top'}
                 >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                        <path d="M16 3a1 1 0 0 1 .7 1.7l-1.1 1.1 1.6 4.8 1.5-.5a1 1 0 1 1 .6 1.9l-2 .7-3.3-3.3-.7 2.1A5 5 0 0 1 8 16H7l-3 3-1.4-1.4 3-3v-1a5 5 0 0 1 4.2-4.9l2.1-.7-3.3-3.3.7-2a1 1 0 0 1 1.9.6l-.5 1.5 4.8 1.6 1.1-1.1A1 1 0 0 1 16 3z"/>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill={image.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <line x1="12" y1="17" x2="12" y2="22"/>
+                        <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
                     </svg>
                 </button>
             )}
@@ -136,43 +185,73 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, isNewestRecent
             {isAdmin && (
                 <button
                     onClick={() => onDelete(image.id)}
-                    className="absolute top-2 right-2 z-20 bg-red-500/80 hover:bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+                    className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-full transition-all duration-200 hover:scale-110"
                     title="Delete artwork"
                 >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                     </svg>
                 </button>
             )}
 
-
-            {/* Recently Added badge — above the image, visible to everyone */}
-            {isNewestRecent && (
-                <div className="bg-emerald-600 text-white text-[11px] font-semibold px-3 py-1 text-center tracking-wide">
-                    ✦ Recently Added
-                </div>
-            )}
-
-            {/* Image with loading spinner */}
-            <div className="overflow-hidden relative bg-slate-950">
+            {/* Image container — natural aspect ratio without cropping (Pinterest masonry) */}
+            <div className="relative overflow-hidden bg-slate-900 min-h-[120px]">
                 {!imgLoaded && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-7 h-7 border-2 border-slate-600 border-t-cyan-400 rounded-full animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 min-h-[140px]">
+                        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                 )}
                 <img
-                    src={image.url}
-                    alt="Artwork"
-                    className={`w-full h-auto block transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    src={optimizedImageUrl}
+                    alt={artworkName}
+                    loading="lazy"
+                    decoding="async"
                     onLoad={() => setImgLoaded(true)}
+                    className={`w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                 />
             </div>
 
-            {/* Action bar: like toggle + comment toggle */}
+            {/* Artwork title & Rename control */}
+            <div className="bg-slate-900/90 px-3 py-2 flex items-center justify-between border-t border-white/5 z-10 shrink-0 min-h-[36px]">
+                {isAdmin && editingName ? (
+                    <form
+                        onSubmit={(e) => { e.preventDefault(); saveName(); }}
+                        className="flex-1 flex items-center gap-1 min-w-0"
+                    >
+                        <input
+                            ref={titleInputRef}
+                            type="text"
+                            value={nameDraft}
+                            onChange={(e) => setNameDraft(e.target.value)}
+                            onBlur={saveName}
+                            onKeyDown={(e) => { if (e.key === 'Escape') setEditingName(false); }}
+                            className="w-full bg-slate-800 border border-cyan-400 rounded px-2 py-0.5 text-xs text-white focus:outline-none"
+                            autoFocus
+                        />
+                    </form>
+                ) : (
+                    <span className="flex-1 text-sm font-semibold text-slate-100 truncate" title={artworkName}>
+                        {artworkName}
+                    </span>
+                )}
+                {isAdmin && !editingName && (
+                    <button
+                        onClick={startEditName}
+                        className="shrink-0 text-slate-400 hover:text-cyan-400 transition-colors p-1"
+                        title="Rename artwork"
+                    >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>
+                        </svg>
+                    </button>
+                )}
+            </div>
+
+            {/* Action bar: Likes & Price / Admin Price Editor */}
             <div className="bg-slate-900/95 px-3 py-2 flex justify-between items-center z-10 shrink-0 border-t border-white/5 relative">
-                {/* Featured badge — centered in action bar, public only */}
                 {image.pinned && !isAdmin && (
-                    <span className="absolute left-1/2 -translate-x-1/2 bg-amber-400 text-slate-900 text-[9px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
+                    <span className="bg-amber-400 text-slate-900 text-[9px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
                         ★ Featured
                     </span>
                 )}
@@ -185,73 +264,159 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, isNewestRecent
                     <span className="text-xs font-semibold tabular-nums">{image.likes}</span>
                 </button>
 
-                <button
-                    onClick={() => setShowComments(p => !p)}
-                    className={`flex items-center gap-1.5 transition-colors duration-150 ${showComments ? 'text-cyan-400' : 'text-slate-400 hover:text-cyan-300'}`}
-                    title="Comments"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    <span className="text-xs font-semibold tabular-nums">{image.comments.length}</span>
-                </button>
+                {isAdmin && editingPrice ? (
+                    <form onSubmit={(e) => { e.preventDefault(); savePrice(); }} className="flex items-center gap-1">
+                        <span className="text-xs text-cyan-400 font-bold">₹</span>
+                        <input
+                            ref={priceInputRef}
+                            type="number"
+                            min="1"
+                            value={priceDraft}
+                            onChange={e => setPriceDraft(e.target.value)}
+                            onBlur={savePrice}
+                            onKeyDown={e => { if (e.key === 'Escape') setEditingPrice(false); }}
+                            className="w-16 bg-slate-800 border border-cyan-400 rounded px-1.5 py-0.5 text-xs text-white font-bold focus:outline-none"
+                            autoFocus
+                        />
+                    </form>
+                ) : (
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-slate-300">₹{currentPrice}</span>
+                        {isAdmin && (
+                            <button
+                                onClick={startEditPrice}
+                                className="text-slate-400 hover:text-cyan-400 p-0.5 transition-colors"
+                                title="Edit price"
+                            >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                    <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Inline comment panel — slides in below the action bar, NOT over the image */}
-            <AnimatePresence>
-                {showComments && (
-                    <motion.div
-                        key="comment-panel"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.22, ease: 'easeInOut' }}
-                        className="overflow-hidden bg-slate-900/98 border-t border-slate-700/40 z-10 shrink-0"
+            {/* Buy button */}
+            <button
+                onClick={() => setShowBuy(true)}
+                className="w-full text-white text-xs font-bold py-2.5 hover:opacity-90 transition-opacity z-10 shrink-0 flex items-center justify-center gap-1.5 shadow-md"
+                style={{ background: 'linear-gradient(90deg,#06b6d4,#6366f1)' }}
+            >
+                <span>👕</span>
+                <span>Buy T-Shirt Print</span>
+            </button>
+
+            {/* T-Shirt Color & Size selection modal */}
+            {showBuy && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+                    style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}
+                    onClick={() => setShowBuy(false)}
+                >
+                    <div
+                        className="w-full max-w-lg rounded-3xl border border-white/15 p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+                        style={{ background: 'rgba(15,23,42,0.98)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.8)' }}
+                        onClick={e => e.stopPropagation()}
                     >
-                        {/* Comments list — always at the top */}
-                        <div className="px-2 pt-2 max-h-[90px] overflow-y-auto space-y-1">
-                            {image.comments.length === 0 ? (
-                                <p className="text-[11px] text-slate-500 italic px-1 pb-1">No comments yet — be first!</p>
-                            ) : (
-                                image.comments.map((c, i) => (
-                                    <div key={i} className="text-[11px] text-slate-300 bg-slate-800/80 rounded px-2 py-1 border border-slate-700/40 leading-snug">
-                                        {renderComment(c)}
-                                    </div>
-                                ))
-                            )}
+                        <div className="flex items-center gap-4 sm:gap-5 mb-6 pb-5 border-b border-white/10">
+                            <img src={image.url} alt="" className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-2xl border border-white/15 shadow-xl shrink-0" />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">Premium Wearable Art</p>
+                                <p className="text-lg sm:text-2xl font-bold text-white truncate">{artworkName}</p>
+                                <p className="text-xs sm:text-sm text-slate-400 mt-1">100% Combed Cotton • 180 GSM • Front DTG Print</p>
+                            </div>
                         </div>
 
-                        {/* Divider */}
-                        <div className="mx-2 mt-2 border-t border-slate-700/40" />
-
-                        {/* Name input */}
-                        <div className="px-2 pt-2 pb-1">
-                            <input
-                                ref={nameInputRef}
-                                type="text"
-                                value={commentName}
-                                onChange={e => setCommentName(e.target.value)}
-                                placeholder="Comment by @yourname"
-                                maxLength={30}
-                                className="w-full bg-slate-800/60 border border-slate-600/40 rounded px-2.5 py-1.5 text-[11px] text-cyan-300 focus:outline-none focus:border-cyan-400/80 placeholder-slate-500 transition-colors font-semibold"
-                            />
+                        {/* 1. Color Selector */}
+                        <div className="mb-6">
+                            <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">
+                                1. Select T-Shirt Color
+                            </label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {(window.PRODUCT_COLORS || []).map(c => {
+                                    const active = selectedColor === c.id;
+                                    return (
+                                        <button
+                                            key={c.id}
+                                            type="button"
+                                            onClick={() => setSelectedColor(c.id)}
+                                            className={`flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border transition-all ${
+                                                active ? 'border-cyan-400 bg-cyan-500/20 shadow-md ring-1 ring-cyan-400' : 'border-white/10 bg-slate-800/60 hover:border-white/30'
+                                            }`}
+                                        >
+                                            <span
+                                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border shadow-md"
+                                                style={{ backgroundColor: c.hex, borderColor: c.border }}
+                                            />
+                                            <span className={`text-xs sm:text-sm font-semibold ${active ? 'text-cyan-300 font-bold' : 'text-slate-300'}`}>
+                                                {c.name.split(' ')[1] || c.name}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
-                        {/* Comment text input */}
-                        <div className="px-2 pb-2 pt-1">
-                            <input
-                                ref={commentInputRef}
-                                type="text"
-                                value={newComment}
-                                onChange={e => setNewComment(e.target.value)}
-                                onKeyDown={handleAddComment}
-                                placeholder="Write a comment… (Enter to post)"
-                                className="w-full bg-slate-800 border border-slate-600/60 rounded px-2.5 py-1.5 text-[11px] text-white focus:outline-none focus:border-cyan-400/80 placeholder-slate-500 transition-colors"
-                            />
+                        {/* 2. Size Selector */}
+                        <div className="mb-6">
+                            <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">
+                                2. Select Size
+                            </label>
+                            <div className="grid grid-cols-5 gap-2.5">
+                                {(window.PRODUCT_SIZES || []).map(s => {
+                                    const active = selectedSize === s.size;
+                                    return (
+                                        <button
+                                            key={s.size}
+                                            type="button"
+                                            onClick={() => setSelectedSize(s.size)}
+                                            className={`py-3 sm:py-3.5 rounded-2xl border font-bold text-sm sm:text-base transition-all ${
+                                                active
+                                                    ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-lg scale-105'
+                                                    : 'bg-slate-800 border-white/10 text-slate-200 hover:border-cyan-400/50'
+                                            }`}
+                                        >
+                                            {s.size}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs sm:text-sm text-slate-400 text-center mt-3">
+                                Selected: <span className="text-white font-bold">{
+                                    ((window.PRODUCT_SIZES || []).find(s => s.size === selectedSize) || {}).label
+                                }</span>
+                            </p>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
+                        {/* Summary & Price */}
+                        <div className="bg-slate-800/60 border border-white/10 rounded-2xl p-4 sm:p-5 mb-6 flex justify-between items-center">
+                            <div>
+                                <span className="text-xs sm:text-sm text-slate-400 uppercase tracking-wider font-semibold">Total Price</span>
+                            </div>
+                            <span className="text-2xl sm:text-3xl font-extrabold text-cyan-400">₹{currentPrice}</span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowBuy(false)}
+                                className="w-1/3 text-xs sm:text-sm font-semibold text-slate-400 hover:text-white py-3.5 sm:py-4 bg-slate-800/70 hover:bg-slate-800 rounded-2xl transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={proceedToCheckout}
+                                className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5"
+                            >
+                                <span>Proceed to Checkout &rarr;</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+
+window.GalleryCard = GalleryCard;

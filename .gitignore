@@ -2,8 +2,20 @@
 utils/auth.js
 utils/firebase.js
 
+# Environment variables (real secrets) — commit only .env.example
+.env
+.env.*
+!.env.example
+
+# Temporary test scripts and probes
+probe.js
+scripts/
+
 # Dependencies
 node_modules/
+
+# Netlify local dev artifacts
+.netlify/
 
 # OS files
 .DS_Store
