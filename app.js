@@ -124,9 +124,30 @@ function MetricsBar() {
     const [metrics, setMetrics] = useState({ totalOrders: 0, delivered: 0, totalRatingStars: 0, totalRatingsCount: 0 });
 
     useEffect(() => {
-        if (typeof subscribeToMetrics !== 'function') return;
-        const unsub = subscribeToMetrics(setMetrics);
-        return () => { if (typeof unsub === 'function') unsub(); };
+        // 1. Instant fetch from serverless API
+        fetch('/api/get-metrics')
+            .then(res => res.json())
+            .then(data => {
+                if (data && !data.error) setMetrics(prev => ({ ...prev, ...data }));
+            })
+            .catch(() => {});
+
+        // 2. Real-time subscription fallback
+        if (typeof subscribeToMetrics === 'function') {
+            const unsub = subscribeToMetrics(setMetrics);
+            return () => { if (typeof unsub === 'function') unsub(); };
+        }
+        if (window.firebase && window.firebase.firestore) {
+            try {
+                const db = window.firebase.firestore();
+                const unsub = db.collection('stats').doc('metrics').onSnapshot(doc => {
+                    if (doc && doc.exists) {
+                        setMetrics(prev => ({ ...prev, ...(doc.data() || {}) }));
+                    }
+                }, () => {});
+                return () => unsub();
+            } catch (e) {}
+        }
     }, []);
 
     const count = metrics.totalRatingsCount || 0;
