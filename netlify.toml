@@ -12,6 +12,9 @@
   # Serverless function source directory.
   functions = "netlify/functions"
 
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "ADMIN_EMAIL,FIREBASE_PROJECT_ID,CLERK_PUBLISHABLE_KEY,PRICE_FRAME_11X14,PRICE_TSHIRT,QIKINK_BASE_URL"
+
 [functions]
   # esbuild bundles each function + its node_modules deps automatically.
   node_bundler = "esbuild"
