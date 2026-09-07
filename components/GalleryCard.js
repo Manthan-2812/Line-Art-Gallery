@@ -374,11 +374,21 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                     onClick={() => setShowBuy(false)}
                 >
                     <div
-                        className="w-full max-w-lg rounded-3xl border border-white/15 p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+                        className="relative w-full max-w-lg rounded-3xl border border-white/15 p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
                         style={{ background: 'rgba(15,23,42,0.98)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.8)' }}
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="flex items-center gap-4 sm:gap-5 mb-6 pb-5 border-b border-white/10">
+                        {/* Top-Right Close Cross Button */}
+                        <button
+                            type="button"
+                            onClick={() => setShowBuy(false)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-lg z-10"
+                            title="Close"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="flex items-center gap-4 sm:gap-5 mb-6 pb-5 border-b border-white/10 pr-6">
                             <img src={image.url} alt="" className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-2xl border border-white/15 shadow-xl shrink-0" />
                             <div className="min-w-0 flex-1">
                                 <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">Premium Wearable Art</p>
