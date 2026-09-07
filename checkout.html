@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout — Line and Layer Gallery</title>
     <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#080e1d">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+    <link rel="manifest" href="manifest.json">
 
     <!-- React 18 -->
     <script src="https://resource.trickle.so/vendor_lib/unpkg/react@18/umd/react.production.min.js"></script>
@@ -28,6 +32,77 @@
     }
     @layer utilities {
         .border-white\/10 { border-color: rgba(255,255,255,0.10); }
+    }
+    .tac-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    .tac-modal-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        max-width: 56rem;
+        width: 100%;
+        max-height: 88vh;
+        overflow-y: auto;
+        border-radius: 1.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        padding: 2.5rem 2rem;
+    }
+    .tac-modal-card h1,
+    .tac-modal-card h2,
+    .tac-modal-card h3 {
+        color: #000000 !important;
+        font-weight: 800;
+    }
+    .tac-modal-card p,
+    .tac-modal-card li,
+    .tac-modal-card > div span,
+    .tac-modal-card section span {
+        color: #1a1a1a !important;
+    }
+
+    .di-proceed-btn {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid #000000 !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 700 !important;
+        border-radius: 0.75rem !important;
+        font-size: 0.875rem !important;
+        transition: all 0.2s ease !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+        cursor: pointer !important;
+    }
+
+    .di-proceed-btn:hover {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+
+    .di-cancel-btn {
+        background-color: transparent !important;
+        color: #000000 !important;
+        border: 1px solid rgba(0, 0, 0, 0.2) !important;
+        padding: 0.75rem 1.25rem !important;
+        font-weight: 600 !important;
+        border-radius: 0.75rem !important;
+        font-size: 0.875rem !important;
+        transition: all 0.2s ease !important;
+        cursor: pointer !important;
+    }
+
+    .di-cancel-btn:hover {
+        background-color: #f5f5f5 !important;
     }
     @media print {
         body { background-color: #080e1d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -117,6 +192,7 @@
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     
     <script type="text/babel" src="components/AddressModal.js"></script>
+    <script type="text/babel" src="components/DeliveryInstructions.js"></script>
 
     <script type="text/babel">
     (function () {
@@ -129,8 +205,11 @@
         const img     = q.get('img')   || '';
         const sku     = q.get('sku')   || '';
         const price   = q.get('price') || '';
+        const unitPrice = q.get('unitPrice') || price;
+        const quantity = Math.max(1, parseInt(q.get('quantity'), 10) || 1);
         const color   = q.get('color') || '';
         const size    = q.get('size')  || '';
+        const printSide = q.get('printSide') || 'front';
         const root    = document.getElementById('checkout-root');
 
         const printMaster = (typeof getPrintMasterUrl === 'function') ? getPrintMasterUrl(img) : img;
@@ -145,7 +224,9 @@
 
         const variant = (window.PRODUCT_VARIANTS || []).find(v => v.sku === sku);
         const vLabel  = variant ? variant.label : (color && size ? `${color} — Size ${size}` : 'T-Shirt Print');
-        const vSpec   = variant ? variant.spec  : '100% Combed Cotton • 180 GSM • Front DTG';
+        const vSpec   = printSide === 'both' 
+            ? '180 GSM Cotton • Double-Sided (Front & Back) (+₹200)' 
+            : (variant ? variant.spec : '180 GSM Cotton • Front DTG Print');
 
         let clerkUserId = '';
         let addressData = null;
@@ -183,10 +264,17 @@
                             <p class="text-xl sm:text-2xl font-bold text-white mb-2 truncate">${esc(artName)}</p>
                             <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Product & Format</p>
                             <p class="text-sm sm:text-base font-semibold text-slate-100 mt-0.5">${esc(vLabel)}${vSpec ? ' — ' + esc(vSpec) : ''}</p>
+                            <div class="mt-2.5 inline-flex items-center gap-2 bg-slate-800/80 border border-white/10 px-3 py-1 rounded-xl text-xs">
+                                <span class="text-slate-400">Order Quantity:</span>
+                                <span class="text-cyan-300 font-bold">${quantity} ${quantity > 1 ? 'items (Bulk Order)' : 'item'}</span>
+                            </div>
                         </div>
                     </div>
                     <div class="border-t border-white/10 mt-5 pt-4 flex justify-between items-center">
-                        <span class="text-base font-medium text-slate-300">Total Price</span>
+                        <div>
+                            <span class="text-base font-medium text-slate-300">Total Price</span>
+                            ${quantity > 1 ? `<span class="block text-xs text-slate-400">(₹${esc(unitPrice)} × ${quantity})</span>` : ''}
+                        </div>
                         <span class="text-2xl sm:text-3xl font-extrabold text-cyan-400">₹${esc(price)}</span>
                     </div>
                 </div>
@@ -205,6 +293,11 @@
                     style="background:linear-gradient(135deg,#22d3ee,#818cf8)">
                     Proceed to Payment &rarr;
                 </button>
+                <div class="mt-4 text-center">
+                    <button id="view-delivery-guide-btn" type="button" class="text-xs text-slate-400 hover:text-cyan-400 underline transition-colors">
+                        View Shipping & Delivery Instructions
+                    </button>
+                </div>
                 <p id="pay-status" class="text-xs text-slate-400 text-center mt-3"></p>
             `;
 
@@ -216,6 +309,20 @@
                     if (el && !el.value) el.value = email;
                 }
             }
+
+            // Bind Delivery Instructions modal
+            const openDeliveryModal = () => {
+                const mRoot = document.getElementById('modal-root');
+                const close = () => ReactDOM.unmountComponentAtNode(mRoot);
+                if (window.DeliveryInstructions) {
+                    ReactDOM.render(
+                        <window.DeliveryInstructions isOpen={true} onClose={close} />,
+                        mRoot
+                    );
+                }
+            };
+            const guideBtn = document.getElementById('view-delivery-guide-btn');
+            if (guideBtn) guideBtn.addEventListener('click', openDeliveryModal);
 
             // Bind Address buttons
             const openModal = () => {
@@ -273,7 +380,9 @@
                             artId:    q.get('art') || '',
                             artName,
                             printUrl: window.__ORDER_PRINT_URL || img,
-                            clerkUserId
+                            clerkUserId,
+                            quantity,
+                            printSide
                         })
                     });
                     const data = await res.json();
@@ -285,7 +394,7 @@
                         amount:      data.amount,
                         currency:    data.currency,
                         name:        'Line and Layer Gallery',
-                        description: `${artName} — ${vLabel}`,
+                        description: `${artName} — ${vLabel}${printSide === 'both' ? ' (Double Sided)' : ''}${quantity > 1 ? ' (Qty: ' + quantity + ')' : ''}`,
                         prefill:     { email: emailVal, contact: addressData.phone || '' },
                         theme:       { color: '#06b6d4' },
                         handler: async function (response) {
@@ -312,6 +421,8 @@
                                     vLabel:      vLabel,
                                     vSpec:       vSpec,
                                     price:       price,
+                                    quantity:    quantity,
+                                    printSide:   printSide,
                                     email:       emailVal,
                                     shipping:    addressData,
                                     date:        new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -436,7 +547,7 @@
                                         <span class="font-medium text-slate-200">${esc(info.vLabel)}</span>
                                         <div class="text-[10px] text-slate-400">${esc(info.vSpec)}</div>
                                     </td>
-                                    <td class="p-3 text-center font-bold">1</td>
+                                    <td class="p-3 text-center font-bold text-white">${info.quantity || 1}</td>
                                     <td class="p-3 text-right font-bold text-white">₹${esc(info.price)}</td>
                                 </tr>
                             </tbody>

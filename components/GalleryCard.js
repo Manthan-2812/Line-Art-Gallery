@@ -10,6 +10,7 @@
 
 function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUpdatePrice, isNewestRecent }) {
     const { useState, useEffect, useRef } = React;
+    const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
     // Initialise liked state from user-specific Set or local Set
     const isArtLiked = () => {
@@ -23,19 +24,33 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         ? Number(image.price) 
         : 900;
 
+    const currentBlueOffset = (image.blueOffset !== undefined && image.blueOffset !== null && !isNaN(Number(image.blueOffset))) 
+        ? Number(image.blueOffset) 
+        : 50;
+
     const [liked, setLiked]                 = useState(isArtLiked);
     const [imgLoaded, setImgLoaded]         = useState(false);
     const [editingName, setEditingName]     = useState(false);
     const [nameDraft, setNameDraft]         = useState('');
-    const [editingPrice, setEditingPrice]   = useState(false);
+    const [editingPriceModal, setEditingPriceModal] = useState(false);
     const [priceDraft, setPriceDraft]       = useState(currentPrice);
+    const [blueOffsetDraft, setBlueOffsetDraft] = useState(currentBlueOffset);
     const titleInputRef                     = useRef(null);
-    const priceInputRef                     = useRef(null);
     
-    // Purchase modal state: selected Color & Size
+    // Purchase modal state: selected Color, Size, Print Placement & Quantity (Bulk Order)
     const [showBuy, setShowBuy]             = useState(false);
+    const [showMockupModal, setShowMockupModal] = useState(false);
+    const [showDualPrintWarning, setShowDualPrintWarning] = useState(false);
     const [selectedColor, setSelectedColor] = useState('Wh');
     const [selectedSize, setSelectedSize]   = useState('M');
+    const [printSide, setPrintSide]         = useState('front'); // 'front' | 'both'
+    const [quantity, setQuantity]           = useState(1);
+
+    // Dynamic price based on color selection & custom blue offset & dual print offset (+₹200)
+    const colorOffset = selectedColor === 'Nb' ? currentBlueOffset : 0;
+    const printOffset = printSide === 'both' ? 200 : 0;
+    const unitPrice   = currentPrice + colorOffset + printOffset;
+    const totalPrice  = unitPrice * Math.max(1, quantity);
 
     // Re-sync if a parent re-renders this card with a different image.id or likes change
     useEffect(() => {
@@ -44,7 +59,8 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
 
     useEffect(() => {
         setPriceDraft(currentPrice);
-    }, [image.price]);
+        setBlueOffsetDraft(currentBlueOffset);
+    }, [image.price, image.blueOffset]);
 
     // Auto-select title text when entering rename mode (admin)
     useEffect(() => {
@@ -52,13 +68,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             setTimeout(() => titleInputRef.current && titleInputRef.current.select(), 50);
         }
     }, [editingName]);
-
-    // Auto-select price input when editing price (admin)
-    useEffect(() => {
-        if (editingPrice && priceInputRef.current) {
-            setTimeout(() => priceInputRef.current && priceInputRef.current.select(), 50);
-        }
-    }, [editingPrice]);
 
     const artworkName = image.name || 'Untitled Artwork';
 
@@ -73,29 +82,34 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     };
 
     // Admin price edit
-    const startEditPrice = () => { setPriceDraft(currentPrice); setEditingPrice(true); };
-    const savePrice = () => {
-        setEditingPrice(false);
-        const parsed = Number(priceDraft);
-        if (!isNaN(parsed) && parsed > 0 && parsed !== currentPrice) {
-            if (onUpdatePrice) onUpdatePrice(image.id, parsed);
+    const savePriceAndOffset = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        setEditingPriceModal(false);
+        const parsedP = Number(priceDraft);
+        const parsedO = Number(blueOffsetDraft);
+        if (!isNaN(parsedP) && parsedP > 0 && !isNaN(parsedO) && parsedO >= 0) {
+            if (onUpdatePrice) onUpdatePrice(image.id, parsedP, parsedO);
         }
     };
 
-    // Navigate to checkout with chosen SKU and artwork price
+    // Navigate to checkout with chosen SKU, artwork price and quantity
     const proceedToCheckout = () => {
         const sku = `MVnHs-${selectedColor}-${selectedSize}`;
         const colorObj = (window.PRODUCT_COLORS || []).find(c => c.id === selectedColor);
         const colorName = colorObj ? colorObj.name : 'Classic White';
+        const finalQty = Math.max(1, parseInt(quantity, 10) || 1);
         
         const params = new URLSearchParams({
-            art:   image.id,
-            name:  artworkName,
-            img:   image.url,
-            sku:   sku,
-            price: String(currentPrice),
-            color: colorName,
-            size:  selectedSize
+            art:       image.id,
+            name:      artworkName,
+            img:       image.url,
+            sku:       sku,
+            price:     String(totalPrice),
+            unitPrice: String(unitPrice),
+            quantity:  String(finalQty),
+            color:     colorName,
+            size:      selectedSize,
+            printSide: printSide
         });
         window.location.href = `checkout.html?${params.toString()}`;
     };
@@ -264,38 +278,85 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                     <span className="text-xs font-semibold tabular-nums">{image.likes}</span>
                 </button>
 
-                {isAdmin && editingPrice ? (
-                    <form onSubmit={(e) => { e.preventDefault(); savePrice(); }} className="flex items-center gap-1">
-                        <span className="text-xs text-cyan-400 font-bold">₹</span>
-                        <input
-                            ref={priceInputRef}
-                            type="number"
-                            min="1"
-                            value={priceDraft}
-                            onChange={e => setPriceDraft(e.target.value)}
-                            onBlur={savePrice}
-                            onKeyDown={e => { if (e.key === 'Escape') setEditingPrice(false); }}
-                            className="w-16 bg-slate-800 border border-cyan-400 rounded px-1.5 py-0.5 text-xs text-white font-bold focus:outline-none"
-                            autoFocus
-                        />
-                    </form>
-                ) : (
-                    <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-slate-300">₹{currentPrice}</span>
-                        {isAdmin && (
-                            <button
-                                onClick={startEditPrice}
-                                className="text-slate-400 hover:text-cyan-400 p-0.5 transition-colors"
-                                title="Edit price"
-                            >
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                    <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>
-                                </svg>
-                            </button>
-                        )}
-                    </div>
-                )}
+                <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-slate-300">₹{currentPrice}</span>
+                    {isAdmin && (
+                        <button
+                            onClick={() => setEditingPriceModal(true)}
+                            className="text-slate-400 hover:text-cyan-400 p-0.5 transition-colors"
+                            title="Edit artwork price & Navy Blue offset"
+                        >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>
+                            </svg>
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* Individual Card Price & Offset Edit Modal (Admin) */}
+            {isAdmin && editingPriceModal && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    onClick={() => setEditingPriceModal(false)}
+                >
+                    <div 
+                        className="bg-slate-900 border border-white/15 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h4 className="text-base font-bold text-white mb-1">Edit Artwork Price</h4>
+                        <p className="text-xs text-slate-400 mb-4">{artworkName}</p>
+
+                        <form onSubmit={savePriceAndOffset} className="space-y-3">
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                    Base Price (INR ₹)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={priceDraft}
+                                    onChange={e => setPriceDraft(e.target.value)}
+                                    className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                    Navy Blue Extra Offset (+INR ₹)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={blueOffsetDraft}
+                                    onChange={e => setBlueOffsetDraft(e.target.value)}
+                                    className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
+                                />
+                                <p className="text-[10px] text-cyan-300 mt-1">
+                                    Navy Blue will cost: ₹{(Number(priceDraft) || 0) + (Number(blueOffsetDraft) || 0)}
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingPriceModal(false)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-all"
+                                >
+                                    Save Price
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Buy button */}
             <button
@@ -306,11 +367,10 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 <span>Buy T-Shirt Print</span>
             </button>
 
-            {/* T-Shirt Color & Size selection modal */}
+            {/* T-Shirt Color, Size & Quantity selection modal */}
             {showBuy && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-                    style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
                     onClick={() => setShowBuy(false)}
                 >
                     <div
@@ -335,12 +395,14 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             <div className="grid grid-cols-3 gap-3">
                                 {(window.PRODUCT_COLORS || []).map(c => {
                                     const active = selectedColor === c.id;
+                                    const cOffset = c.id === 'Nb' ? currentBlueOffset : 0;
+                                    const colorPrice = currentPrice + cOffset;
                                     return (
                                         <button
                                             key={c.id}
                                             type="button"
                                             onClick={() => setSelectedColor(c.id)}
-                                            className={`flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border transition-all ${
+                                            className={`relative flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border transition-all ${
                                                 active ? 'border-cyan-400 bg-cyan-500/20 shadow-md ring-1 ring-cyan-400' : 'border-white/10 bg-slate-800/60 hover:border-white/30'
                                             }`}
                                         >
@@ -348,9 +410,14 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                                 className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border shadow-md"
                                                 style={{ backgroundColor: c.hex, borderColor: c.border }}
                                             />
-                                            <span className={`text-xs sm:text-sm font-semibold ${active ? 'text-cyan-300 font-bold' : 'text-slate-300'}`}>
-                                                {c.name.split(' ')[1] || c.name}
-                                            </span>
+                                            <div className="text-center">
+                                                <span className={`block text-xs sm:text-sm font-semibold ${active ? 'text-cyan-300 font-bold' : 'text-slate-300'}`}>
+                                                    {c.name.split(' ')[1] || c.name}
+                                                </span>
+                                                <span className="block text-[10px] text-slate-400 mt-0.5">
+                                                    ₹{colorPrice}
+                                                </span>
+                                            </div>
                                         </button>
                                     );
                                 })}
@@ -388,12 +455,110 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             </p>
                         </div>
 
+                        {/* 3. Mandatory Print Placement Selector */}
+                        <div className="mb-6">
+                            <div className="flex justify-between items-center mb-3">
+                                <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">
+                                    3. Print Placement <span className="text-cyan-400">*</span>
+                                </label>
+                                <span className="text-[11px] font-bold text-cyan-300">Mandatory Selection</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setPrintSide('front')}
+                                    className={`p-3.5 rounded-2xl border text-left transition-all relative ${
+                                        printSide === 'front'
+                                            ? 'border-cyan-400 bg-cyan-500/20 ring-1 ring-cyan-400 shadow-md'
+                                            : 'border-white/10 bg-slate-800/60 hover:border-white/30 text-slate-300'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-extrabold text-sm text-white">Front Only</span>
+                                        {printSide === 'front' && <span className="text-cyan-400 text-xs font-bold">✓</span>}
+                                    </div>
+                                    <p className="text-[11px] text-slate-400">Standard single side print (+₹0)</p>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (printSide !== 'both') {
+                                            setShowDualPrintWarning(true);
+                                        }
+                                    }}
+                                    className={`p-3.5 rounded-2xl border text-left transition-all relative ${
+                                        printSide === 'both'
+                                            ? 'border-cyan-400 bg-cyan-500/20 ring-1 ring-cyan-400 shadow-md'
+                                            : 'border-white/10 bg-slate-800/60 hover:border-white/30 text-slate-300'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-extrabold text-sm text-white">Front & Back</span>
+                                        <span className="text-[10px] font-bold bg-cyan-400 text-slate-950 px-1.5 py-0.5 rounded-full">+₹200</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400">Double-sided premium print</p>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 4. Quantity / Bulk Order Selector */}
+                        <div className="mb-6">
+                            <div className="flex justify-between items-center mb-3">
+                                <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">
+                                    4. Quantity (Bulk Order)
+                                </label>
+                                <span className="text-[11px] text-slate-400">Default: 1 Item</span>
+                            </div>
+                            <div className="flex items-center gap-3 bg-slate-800/80 border border-white/10 p-2.5 rounded-2xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setQuantity(q => Math.max(1, (parseInt(q, 10) || 1) - 1))}
+                                    className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-lg flex items-center justify-center transition-colors disabled:opacity-40"
+                                    disabled={quantity <= 1}
+                                >
+                                    −
+                                </button>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    value={quantity}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setQuantity(val === '' ? '' : Math.max(1, parseInt(val, 10)));
+                                    }}
+                                    onBlur={() => {
+                                        if (!quantity || isNaN(Number(quantity)) || Number(quantity) < 1) {
+                                            setQuantity(1);
+                                        }
+                                    }}
+                                    className="flex-1 bg-slate-900 border border-white/15 rounded-xl py-2 px-3 text-center text-white font-bold text-lg focus:outline-none focus:border-cyan-400"
+                                    placeholder="1"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setQuantity(q => (parseInt(q, 10) || 1) + 1)}
+                                    className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-lg flex items-center justify-center transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Summary & Price */}
                         <div className="bg-slate-800/60 border border-white/10 rounded-2xl p-4 sm:p-5 mb-6 flex justify-between items-center">
                             <div>
                                 <span className="text-xs sm:text-sm text-slate-400 uppercase tracking-wider font-semibold">Total Price</span>
+                                <div className="text-[11px] text-slate-400 mt-0.5">
+                                    {quantity > 1 ? (
+                                        <span className="text-cyan-300 font-medium">₹{unitPrice} × {quantity} items</span>
+                                    ) : (
+                                        <span>₹{unitPrice} ({printSide === 'both' ? 'Double Sided' : 'Single Sided'}{colorOffset > 0 ? ' • Navy Blue' : ''})</span>
+                                    )}
+                                </div>
                             </div>
-                            <span className="text-2xl sm:text-3xl font-extrabold text-cyan-400">₹{currentPrice}</span>
+                            <span className="text-2xl sm:text-3xl font-extrabold text-cyan-400">₹{totalPrice}</span>
                         </div>
 
                         {/* Actions */}
@@ -405,10 +570,120 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                 Cancel
                             </button>
                             <button
-                                onClick={proceedToCheckout}
+                                onClick={() => {
+                                    setShowBuy(false);
+                                    setShowMockupModal(true);
+                                }}
                                 className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5"
                             >
-                                <span>Proceed to Checkout &rarr;</span>
+                                <span>Preview Product &rarr;</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Realistic T-Shirt Product Preview Modal (Front & Back) */}
+            {typeof ProductMockupModal !== 'undefined' && (
+                <ProductMockupModal
+                    isOpen={showMockupModal}
+                    onClose={() => {
+                        setShowMockupModal(false);
+                        setShowBuy(true);
+                    }}
+                    onProceed={() => {
+                        setShowMockupModal(false);
+                        setShowDeliveryModal(true);
+                    }}
+                    artwork={image}
+                    selectedColor={selectedColor}
+                    selectedSize={selectedSize}
+                    printSide={printSide}
+                    quantity={Math.max(1, parseInt(quantity, 10) || 1)}
+                    price={totalPrice}
+                />
+            )}
+
+            {/* Delivery Instructions Gate Modal */}
+            {typeof DeliveryInstructions !== 'undefined' && (
+                <DeliveryInstructions
+                    isOpen={showDeliveryModal}
+                    onClose={() => setShowDeliveryModal(false)}
+                    onProceed={proceedToCheckout}
+                />
+            )}
+
+            {/* Double-Sided Print (+₹200) Notice & Warning Card Modal */}
+            {showDualPrintWarning && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-all"
+                    onClick={() => setShowDualPrintWarning(false)}
+                >
+                    <div 
+                        className="bg-slate-900 border border-amber-400/40 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl relative"
+                        onClick={e => e.stopPropagation()}
+                        style={{ boxShadow: '0 25px 60px -15px rgba(245,158,11,0.25)' }}
+                    >
+                        {/* Cross Button */}
+                        <button
+                            type="button"
+                            onClick={() => setShowDualPrintWarning(false)}
+                            className="absolute top-4 right-4 text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-lg"
+                            title="Close"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="flex items-start gap-3.5 mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0 text-2xl">
+                                ⚠️
+                            </div>
+                            <div>
+                                <span className="inline-block bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1">
+                                    Print Placement Notice
+                                </span>
+                                <h3 className="text-xl font-extrabold text-white leading-tight">
+                                    Double-Sided Print Fee (+₹200)
+                                </h3>
+                            </div>
+                        </div>
+
+                        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
+                            Selecting <strong className="text-white">Front & Back</strong> printing adds an extra <strong className="text-amber-300 font-bold">₹200</strong> per T-shirt for the second high-definition DTG print run on the back.
+                        </p>
+
+                        <div className="bg-slate-800/80 rounded-2xl p-3.5 border border-white/10 mb-5 text-xs text-slate-300 space-y-1">
+                            <div className="flex justify-between">
+                                <span>Single Side Unit Price:</span>
+                                <span className="font-semibold text-white">₹{currentPrice + colorOffset}</span>
+                            </div>
+                            <div className="flex justify-between text-amber-300 font-bold">
+                                <span>Back Print Fee:</span>
+                                <span>+₹200</span>
+                            </div>
+                            <div className="border-t border-white/10 pt-1.5 flex justify-between text-white font-extrabold text-sm">
+                                <span>New Unit Price:</span>
+                                <span className="text-cyan-400">₹{currentPrice + colorOffset + 200}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowDualPrintWarning(false)}
+                                className="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-bold text-slate-300 hover:text-white rounded-2xl transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPrintSide('both');
+                                    setShowDualPrintWarning(false);
+                                }}
+                                className="w-2/3 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs sm:text-sm font-extrabold rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                                <span>✓ OK, I Agree (+₹200)</span>
                             </button>
                         </div>
                     </div>

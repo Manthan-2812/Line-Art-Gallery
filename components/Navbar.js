@@ -19,6 +19,30 @@ function Navbar({ onAboutClick, onBrandClick }) {
     const [showAddress, setShowAddress] = useState(false);
     const [showOrders,  setShowOrders]  = useState(false);
     const [addressData, setAddressData] = useState(null);
+    const [installPrompt, setInstallPrompt] = useState(null);
+
+    // Capture install prompt for the navbar install button
+    useEffect(() => {
+        const handler = (e) => {
+            e.preventDefault();
+            setInstallPrompt(e);
+            window.__deferredPwaPrompt = e;
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        if (window.__deferredPwaPrompt) setInstallPrompt(window.__deferredPwaPrompt);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const triggerInstall = async () => {
+        const p = installPrompt || window.__deferredPwaPrompt;
+        if (p) {
+            p.prompt();
+            const { outcome } = await p.userChoice;
+            if (outcome === 'accepted') setInstallPrompt(null);
+        } else {
+            alert('To install the app on your phone or desktop, tap your browser menu (⋮ or Share) and select "Add to Home screen" / "Install app".');
+        }
+    };
 
     // Check if the current logged-in Clerk user is the admin
     const userEmails = user ? (user.emailAddresses || []).map(e => (e.emailAddress || '').toLowerCase()) : [];
@@ -51,18 +75,22 @@ function Navbar({ onAboutClick, onBrandClick }) {
             >
                 {/* Brand — clicking scrolls to page top */}
                 <div
-                    className="text-base sm:text-xl font-extrabold cursor-pointer tracking-wide select-none flex items-center gap-2"
-                    style={{
-                        background: 'linear-gradient(90deg, #22d3ee, #818cf8, #f472b6)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: 'none',
-                        filter: 'drop-shadow(0 0 8px rgba(56,189,248,0.45))'
-                    }}
+                    className="text-base sm:text-xl font-extrabold cursor-pointer tracking-wide select-none flex items-center gap-2.5"
                     onClick={scrollToTop}
                     title="Scroll to top"
                 >
-                    Line and Layer Gallery
+                    <img src="icons/icon.svg" alt="Logo" className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg border border-cyan-400/30 shadow-md shrink-0" />
+                    <span
+                        style={{
+                            background: 'linear-gradient(90deg, #22d3ee, #818cf8, #f472b6)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            textShadow: 'none',
+                            filter: 'drop-shadow(0 0 8px rgba(56,189,248,0.45))'
+                        }}
+                    >
+                        Line and Layer Gallery
+                    </span>
                     {isClerkAdmin && (
                         <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 uppercase">
                             Admin
@@ -71,7 +99,21 @@ function Navbar({ onAboutClick, onBrandClick }) {
                 </div>
 
                 {/* Right-side controls */}
-                <div className="flex items-center gap-2.5 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Install App Button */}
+                    <button
+                        onClick={triggerInstall}
+                        className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-400/50 hover:border-cyan-300 rounded-xl px-2.5 sm:px-3 py-1.5 transition-all shadow-sm shrink-0"
+                        title="Install Line & Layer App"
+                    >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        <span>Install App</span>
+                    </button>
+
                     <button
                         onClick={onAboutClick}
                         className="text-sm text-slate-300 hover:text-cyan-400 transition-colors font-medium hidden sm:inline"

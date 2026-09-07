@@ -54,7 +54,7 @@ async function getQikinkToken() {
  *
  * @returns {Promise<{ qikinkOrderId: string }>}
  */
-async function submitToQikink({ orderNumber, printUrl, email, amountInr, shipping, sku: itemSku }) {
+async function submitToQikink({ orderNumber, printUrl, email, amountInr, shipping, sku: itemSku, quantity, printSide }) {
     const base      = process.env.QIKINK_BASE_URL || 'https://sandbox.qikink.com';
     const clientId  = process.env.QIKINK_CLIENT_ID;
     const token     = await getQikinkToken();
@@ -62,10 +62,41 @@ async function submitToQikink({ orderNumber, printUrl, email, amountInr, shippin
 
     const sku         = itemSku || process.env.QIKINK_SKU || 'MVnHs-Wh-M';
     const printTypeId = Number(process.env.QIKINK_PRINT_TYPE_ID || 1);
+    const qty         = Math.max(1, parseInt(quantity, 10) || 1);
+    const isDouble    = printSide === 'both';
 
     // QikInk order_number max length is 15 chars
     const safeOrderNo = String(orderNumber || 'ORD' + Date.now()).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
     const designCode  = 'ART_' + Date.now().toString().slice(-8);
+
+    // Build QikInk designs array (Single Front vs Double Front & Back)
+    const designs = isDouble ? [
+        {
+            design_code:   designCode + '_FR',
+            width_inches:  '11',
+            height_inches: '14',
+            placement_sku: 'fr',
+            design_link:   printUrl,
+            mockup_link:   printUrl
+        },
+        {
+            design_code:   designCode + '_BK',
+            width_inches:  '11',
+            height_inches: '14',
+            placement_sku: 'bk',
+            design_link:   printUrl,
+            mockup_link:   printUrl
+        }
+    ] : [
+        {
+            design_code:   designCode,
+            width_inches:  '11',
+            height_inches: '14',
+            placement_sku: 'fr',
+            design_link:   printUrl,
+            mockup_link:   printUrl
+        }
+    ];
 
     // Parse customer name
     const fullName  = (sh.fullName || 'Customer').trim();
@@ -83,19 +114,10 @@ async function submitToQikink({ orderNumber, printUrl, email, amountInr, shippin
             {
                 search_from_my_products: 0,
                 sku:           sku,
-                quantity:      '1',
+                quantity:      String(qty),
                 price:         String(amountInr || 900),
                 print_type_id: printTypeId,
-                designs: [
-                    {
-                        design_code:   designCode,
-                        width_inches:  '11',
-                        height_inches: '14',
-                        placement_sku: 'fr',
-                        design_link:   printUrl,
-                        mockup_link:   printUrl
-                    }
-                ]
+                designs:       designs
             }
         ],
 

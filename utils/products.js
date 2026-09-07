@@ -5,9 +5,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 window.PRODUCT_COLORS = [
-    { id: 'Wh', name: 'Classic White',  hex: '#f8fafc', border: '#cbd5e1' },
-    { id: 'Bk', name: 'Midnight Black', hex: '#090d16', border: '#334155' },
-    { id: 'Nb', name: 'Navy Blue',      hex: '#1e293b', border: '#475569' }
+    { id: 'Wh', name: 'Classic White',  hex: '#f8fafc', border: '#cbd5e1', priceOffset: 0 },
+    { id: 'Bk', name: 'Midnight Black', hex: '#090d16', border: '#334155', priceOffset: 0 },
+    { id: 'Nb', name: 'Navy Blue',      hex: '#1e293b', border: '#475569', priceOffset: 50 }
 ];
 
 window.PRODUCT_SIZES = [
@@ -26,6 +26,7 @@ window.getTshirtSku = function(colorId, size) {
 window.PRODUCT_VARIANTS = [];
 window.PRODUCT_COLORS.forEach(c => {
     window.PRODUCT_SIZES.forEach(s => {
+        const offset = c.priceOffset || 0;
         window.PRODUCT_VARIANTS.push({
             sku:      `MVnHs-${c.id}-${s.size}`,
             colorId:  c.id,
@@ -33,7 +34,7 @@ window.PRODUCT_COLORS.forEach(c => {
             size:     s.size,
             label:    `${c.name} — Size ${s.size}`,
             spec:     '100% Combed Cotton • 180 GSM • Front DTG Print',
-            price:    900
+            price:    900 + offset
         });
     });
 });

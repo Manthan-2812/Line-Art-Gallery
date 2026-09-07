@@ -96,17 +96,20 @@ const GALLERY_LETTER_COLORS = [
 // No typewriter animation here — the gallery is a destination, not an intro.
 function GalleryTitle() {
     return (
-        <h1 className="text-xl sm:text-3xl font-extrabold tracking-wider text-center flex-1 mx-2 sm:mx-4 leading-none">
-            {'Art Gallery'.split('').map((char, i) => (
-                <span key={i} style={{
-                    color:      char === ' ' ? 'transparent' : GALLERY_LETTER_COLORS[i % GALLERY_LETTER_COLORS.length],
-                    textShadow: char === ' ' ? 'none' : `0 0 12px ${GALLERY_LETTER_COLORS[i % GALLERY_LETTER_COLORS.length]}88`,
-                    display:    'inline-block',
-                    whiteSpace: char === ' ' ? 'pre' : 'normal'
-                }}>
-                    {char === ' ' ? '\u00A0' : char}
-                </span>
-            ))}
+        <h1 className="text-xl sm:text-3xl font-extrabold tracking-wider text-center flex-1 mx-2 sm:mx-4 leading-none flex items-center justify-center gap-2">
+            <img src="icons/icon.svg" alt="Logo" className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg border border-cyan-400/30 shadow-md inline-block" />
+            <span>
+                {'Art Gallery'.split('').map((char, i) => (
+                    <span key={i} style={{
+                        color:      char === ' ' ? 'transparent' : GALLERY_LETTER_COLORS[i % GALLERY_LETTER_COLORS.length],
+                        textShadow: char === ' ' ? 'none' : `0 0 12px ${GALLERY_LETTER_COLORS[i % GALLERY_LETTER_COLORS.length]}88`,
+                        display:    'inline-block',
+                        whiteSpace: char === ' ' ? 'pre' : 'normal'
+                    }}>
+                        {char === ' ' ? '\u00A0' : char}
+                    </span>
+                ))}
+            </span>
         </h1>
     );
 }
@@ -123,12 +126,40 @@ function GalleryApp() {
     const userState = window.useClerkUser ? window.useClerkUser() : { isSignedIn: false, user: null };
     const isSignedIn = userState.isSignedIn;
 
-    const [isAdmin,     setIsAdmin]     = useState(false);
-    const [images,      setImages]      = useState([]);
-    const [isLoaded,    setIsLoaded]    = useState(false);
-    const [showUpload,  setShowUpload]  = useState(false);
-    const [showOrders,  setShowOrders]  = useState(false);
-    const [userLikes,   setUserLikes]   = useState(new Set());
+    const [isAdmin,             setIsAdmin]             = useState(false);
+    const [images,              setImages]              = useState([]);
+    const [isLoaded,            setIsLoaded]            = useState(false);
+    const [showUpload,          setShowUpload]          = useState(false);
+    const [showOrders,          setShowOrders]          = useState(false);
+    const [userLikes,           setUserLikes]           = useState(new Set());
+    const [showBulkPriceModal,  setShowBulkPriceModal]  = useState(false);
+    const [bulkPriceVal,        setBulkPriceVal]        = useState('900');
+    const [bulkOffsetVal,       setBulkOffsetVal]       = useState('50');
+    const [isProcessingBulk,    setIsProcessingBulk]    = useState(false);
+    const [isDeletingAll,       setIsDeletingAll]       = useState(false);
+    const [installPrompt,       setInstallPrompt]       = useState(null);
+
+    // Listen for PWA installation prompt
+    useEffect(() => {
+        const handler = (e) => {
+            e.preventDefault();
+            setInstallPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const triggerInstall = async () => {
+        if (!installPrompt) {
+            alert('To install the app, tap your browser menu (⋮ or Share) and select "Add to Home screen" / "Install app".');
+            return;
+        }
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setInstallPrompt(null);
+        }
+    };
 
     // Sync admin status and user-specific likes from Clerk authentication
     useEffect(() => {
@@ -215,10 +246,75 @@ function GalleryApp() {
             .catch(err => console.error('[Firebase] rename failed:', err));
     };
 
-    // Update artwork price — admin only; persists custom price to Firestore
-    const handleUpdatePrice = (id, newPrice) => {
-        updateImageInFirebase(id, { price: Number(newPrice) })
+    // Update artwork price & blue offset — admin only; persists custom price to Firestore
+    const handleUpdatePrice = (id, newPrice, newOffset) => {
+        const updateObj = { price: Number(newPrice) };
+        if (newOffset !== undefined && !isNaN(Number(newOffset))) {
+            updateObj.blueOffset = Number(newOffset);
+        }
+        updateImageInFirebase(id, updateObj)
             .catch(err => console.error('[Firebase] update price failed:', err));
+    };
+
+    // Bulk delete all artworks — admin only
+    const handleDeleteAll = async () => {
+        if (images.length === 0) {
+            alert('No artworks to delete.');
+            return;
+        }
+        const confirmed = confirm(
+            `⚠️ DANGER: Are you sure you want to delete ALL ${images.length} artworks from the gallery?\n\nThis will permanently remove all cards and cannot be undone.`
+        );
+        if (!confirmed) return;
+
+        setIsDeletingAll(true);
+        try {
+            const deletePromises = images.map(img => deleteImageFromFirebase(img.id));
+            await Promise.all(deletePromises);
+        } catch (err) {
+            console.error('[Firebase] Bulk delete failed:', err);
+            alert('Failed to delete some artworks: ' + (err.message || err));
+        } finally {
+            setIsDeletingAll(false);
+        }
+    };
+
+    // Bulk update price for all artworks — admin only
+    const handleBulkUpdatePrice = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const parsedPrice = Number(bulkPriceVal);
+        const parsedOffset = Number(bulkOffsetVal);
+        if (isNaN(parsedPrice) || parsedPrice <= 0) {
+            alert('Please enter a valid positive base price (e.g. 900)');
+            return;
+        }
+        if (isNaN(parsedOffset) || parsedOffset < 0) {
+            alert('Please enter a valid offset for Navy Blue (e.g. 50, 80, or 0)');
+            return;
+        }
+        if (images.length === 0) {
+            alert('No artworks found to update.');
+            return;
+        }
+        const confirmed = confirm(
+            `Update ALL ${images.length} artworks to:\n• Base Price: ₹${parsedPrice}\n• Navy Blue: ₹${parsedPrice + parsedOffset} (+₹${parsedOffset})?`
+        );
+        if (!confirmed) return;
+
+        setIsProcessingBulk(true);
+        try {
+            const updatePromises = images.map(img => updateImageInFirebase(img.id, { 
+                price: parsedPrice,
+                blueOffset: parsedOffset
+            }));
+            await Promise.all(updatePromises);
+            setShowBulkPriceModal(false);
+        } catch (err) {
+            console.error('[Firebase] Bulk price update failed:', err);
+            alert('Failed to update some prices: ' + (err.message || err));
+        } finally {
+            setIsProcessingBulk(false);
+        }
     };
 
     // ── Derived display data ───────────────────────────────────────────────────
@@ -264,8 +360,22 @@ function GalleryApp() {
                 {/* Centred gradient title — same font style as landing page */}
                 <GalleryTitle />
 
-                {/* Right side — My Orders + customer auth (Clerk) + admin controls */}
+                {/* Right side — Install App + My Orders + customer auth (Clerk) + admin controls */}
                 <div className="shrink-0 flex justify-end items-center gap-2">
+                    {/* Install App Quick Action (PWA) */}
+                    <button
+                        onClick={triggerInstall}
+                        className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200 bg-cyan-950/60 border border-cyan-500/40 hover:border-cyan-400 rounded-lg px-2.5 py-1.5 transition-all shadow-sm"
+                        title="Install Line & Layer App"
+                    >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        <span>App</span>
+                    </button>
+
                     {/* My Orders button — only shown when signed in */}
                     {isSignedIn && (
                         <button
@@ -290,7 +400,7 @@ function GalleryApp() {
             {/* ── Gallery Content ───────────────────────────────────────────────── */}
             <main className="relative z-10 container mx-auto px-3 sm:px-4 mt-8">
 
-                {/* Admin: Upload zone — toggled by the + button */}
+                {/* Admin: Upload & Bulk Management Controls */}
                 {isAdmin && (
                     <motion.div
                         className="mb-8"
@@ -298,26 +408,59 @@ function GalleryApp() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4 }}
                     >
-                        {/* Toggle button */}
-                        <div className="flex justify-end mb-4">
-                            <button
-                                onClick={() => setShowUpload(v => !v)}
-                                className="flex items-center gap-2 font-bold py-2.5 px-6 rounded-xl text-sm text-white transition-all hover:scale-105 active:scale-95"
-                                style={{
-                                    background: showUpload
-                                        ? 'rgba(255,255,255,0.08)'
-                                        : 'linear-gradient(135deg,#ec4899,#a855f7)',
-                                    boxShadow: showUpload ? 'none' : '0 0 20px rgba(168,85,247,0.45)'
-                                }}
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                    {showUpload
-                                        ? <line x1="18" y1="6" x2="6" y2="18"/>
-                                        : <><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>}
-                                    {showUpload && <line x1="6" y1="6" x2="18" y2="18"/>}
-                                </svg>
-                                {showUpload ? 'Cancel' : 'Upload New Artwork'}
-                            </button>
+                        {/* Admin Action Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-900/80 border border-white/10 rounded-2xl mb-4 backdrop-blur-md shadow-xl">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 border border-cyan-400/20 px-3 py-1.5 rounded-xl">
+                                    Admin Toolbar ({images.length} Artworks)
+                                </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Bulk Edit Price Button */}
+                                <button
+                                    onClick={() => setShowBulkPriceModal(true)}
+                                    disabled={images.length === 0}
+                                    className="flex items-center gap-1.5 font-bold py-2 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-400/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    title="Set base price for all artworks in the gallery"
+                                >
+                                    <span>₹</span>
+                                    <span>Set All Prices</span>
+                                </button>
+
+                                {/* Delete All Artworks Button */}
+                                <button
+                                    onClick={handleDeleteAll}
+                                    disabled={isDeletingAll || images.length === 0}
+                                    className="flex items-center gap-1.5 font-bold py-2 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-400/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    title="Delete all artworks from the gallery"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                    <span>{isDeletingAll ? 'Deleting All…' : 'Delete All'}</span>
+                                </button>
+
+                                {/* Toggle Upload button */}
+                                <button
+                                    onClick={() => setShowUpload(v => !v)}
+                                    className="flex items-center gap-1.5 font-bold py-2 px-4 sm:px-5 rounded-xl text-xs sm:text-sm text-white transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    style={{
+                                        background: showUpload
+                                            ? 'rgba(255,255,255,0.08)'
+                                            : 'linear-gradient(135deg,#ec4899,#a855f7)',
+                                        boxShadow: showUpload ? 'none' : '0 0 15px rgba(168,85,247,0.4)'
+                                    }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                        {showUpload
+                                            ? <line x1="18" y1="6" x2="6" y2="18"/>
+                                            : <><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>}
+                                    </svg>
+                                    <span>{showUpload ? 'Cancel' : 'Upload Artwork'}</span>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Inline FileUploadZone — direct Cloudinary REST upload */}
@@ -391,6 +534,99 @@ function GalleryApp() {
                 )}
             </main>
 
+            {/* Bulk Price Edit Modal (Admin) */}
+            {showBulkPriceModal && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    onClick={() => setShowBulkPriceModal(false)}
+                >
+                    <div 
+                        className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setShowBulkPriceModal(false)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-white text-lg font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                        >
+                            ✕
+                        </button>
+
+                        <h3 className="text-xl font-bold text-white mb-2">Set Price for All Artworks</h3>
+                        <p className="text-xs sm:text-sm text-slate-400 mb-5 leading-relaxed">
+                            This will update the base price of all <strong className="text-cyan-300">{images.length} artworks</strong> in the gallery. (Color variants like Navy Blue will add their standard offset).
+                        </p>
+
+                        <form onSubmit={handleBulkUpdatePrice} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                                    Base Price (White & Black) — INR ₹
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={bulkPriceVal}
+                                        onChange={e => setBulkPriceVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl pl-10 pr-4 py-3 text-white font-bold text-lg focus:outline-none focus:border-cyan-400"
+                                        placeholder="900"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                                    Navy Blue Extra Offset (+INR ₹)
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 font-bold text-lg">+₹</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={bulkOffsetVal}
+                                        onChange={e => setBulkOffsetVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl pl-12 pr-4 py-3 text-white font-bold text-lg focus:outline-none focus:border-cyan-400"
+                                        placeholder="50"
+                                    />
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                    Navy Blue T-shirts will cost <strong className="text-cyan-300">₹{(Number(bulkPriceVal) || 0) + (Number(bulkOffsetVal) || 0)}</strong>.
+                                </p>
+                            </div>
+
+                            <div className="bg-slate-800/80 rounded-2xl p-3.5 border border-white/10 space-y-1 text-xs">
+                                <div className="flex justify-between text-slate-300">
+                                    <span>Classic White / Black:</span>
+                                    <span className="font-bold text-white">₹{Number(bulkPriceVal) || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-cyan-300">
+                                    <span>Navy Blue:</span>
+                                    <span className="font-bold">₹{(Number(bulkPriceVal) || 0) + (Number(bulkOffsetVal) || 0)}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkPriceModal(false)}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isProcessingBulk}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-all shadow-lg disabled:opacity-50 cursor-pointer"
+                                >
+                                    {isProcessingBulk ? 'Updating All…' : 'Apply to All Artworks'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* Order History Drawer */}
             {window.OrderHistoryDrawer && (
                 <window.OrderHistoryDrawer
@@ -398,6 +634,9 @@ function GalleryApp() {
                     onClose={() => setShowOrders(false)}
                 />
             )}
+
+            {/* Bottom PWA Install Prompt Banner */}
+            {typeof PWAInstallBanner !== 'undefined' && <PWAInstallBanner />}
         </div>
     );
 }

@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Art Gallery — Line and Layer</title>
     <meta name="description" content="Browse the full artwork collection at Line and Layer Gallery">
+    <meta name="theme-color" content="#080e1d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+    <link rel="manifest" href="manifest.json">
 
     <!-- Preconnect to CDNs for speed -->
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
@@ -61,6 +67,81 @@
         .border-white\/8  { border-color: rgba(255,255,255,0.08); }
         .border-white\/10 { border-color: rgba(255,255,255,0.10); }
     }
+
+    .tac-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .tac-modal-card {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        max-width: 56rem;
+        width: 100%;
+        max-height: 88vh;
+        overflow-y: auto;
+        border-radius: 1.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        padding: 2.5rem 2rem;
+    }
+
+    .tac-modal-card h1,
+    .tac-modal-card h2,
+    .tac-modal-card h3 {
+        color: #000000 !important;
+        font-weight: 800;
+    }
+
+    .tac-modal-card p,
+    .tac-modal-card li,
+    .tac-modal-card > div span,
+    .tac-modal-card section span {
+        color: #1a1a1a !important;
+    }
+
+    .di-proceed-btn {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid #000000 !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 700 !important;
+        border-radius: 0.75rem !important;
+        font-size: 0.875rem !important;
+        transition: all 0.2s ease !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+        cursor: pointer !important;
+    }
+
+    .di-proceed-btn:hover {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+
+    .di-cancel-btn {
+        background-color: transparent !important;
+        color: #000000 !important;
+        border: 1px solid rgba(0, 0, 0, 0.2) !important;
+        padding: 0.75rem 1.25rem !important;
+        font-weight: 600 !important;
+        border-radius: 0.75rem !important;
+        font-size: 0.875rem !important;
+        transition: all 0.2s ease !important;
+        cursor: pointer !important;
+    }
+
+    .di-cancel-btn:hover {
+        background-color: #f5f5f5 !important;
+    }
     </style>
 </head>
 <body>
@@ -81,10 +162,23 @@
     <script type="text/babel" src="utils/emailjs-notify.js"></script>
     <script type="text/babel" src="components/TransitionOverlay.js"></script>
     <script src="utils/products.js"></script>
+    <script type="text/babel" src="components/ProductMockupModal.js"></script>
+    <script type="text/babel" src="components/DeliveryInstructions.js"></script>
     <script type="text/babel" src="components/GalleryCard.js"></script>
     <!-- Admin drag-and-drop upload zone (direct Cloudinary REST upload) -->
     <script type="text/babel" src="components/FileUploadZone.js"></script>
+    <!-- PWA Install Prompt Banner -->
+    <script type="text/babel" src="components/PWAInstallBanner.js"></script>
     <!-- Gallery page root -->
     <script type="text/babel" src="gallery-app.js"></script>
+
+    <!-- Register PWA Service Worker -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration error:', err));
+        });
+    }
+    </script>
 </body>
 </html>

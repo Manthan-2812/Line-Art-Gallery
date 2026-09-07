@@ -107,6 +107,9 @@ exports.handler = async (event) => {
                 }
             }
 
+            const quantity = Math.max(1, parseInt(notes.quantity, 10) || 1);
+            const printSide = notes.printSide === 'both' ? 'both' : 'front';
+
             await ref.set({
                 status:      'paid',
                 source:      'webhook',
@@ -114,6 +117,9 @@ exports.handler = async (event) => {
                 orderId,
                 amount:      payment.amount,      // paise
                 currency:    payment.currency,
+                quantity:    quantity,
+                unitPrice:   notes.unitPrice ? Number(notes.unitPrice) : null,
+                printSide:   printSide,
                 email,
                 clerkUserId,
                 shipping,
@@ -140,7 +146,9 @@ exports.handler = async (event) => {
                     email,
                     amountInr:   Math.round((payment.amount || 0) / 100),  // paise -> INR
                     shipping,
-                    sku:         notes.sku || ''
+                    sku:         notes.sku || '',
+                    quantity:    quantity,
+                    printSide:   printSide
                 });
                 await ref.update({
                     fulfillment:       'submitted',
@@ -165,7 +173,10 @@ exports.handler = async (event) => {
                         printUrl:    snap.printUrl,
                         email:       snap.email || '',
                         amountInr:   Math.round((snap.amount || 0) / 100),
-                        shipping:    snap.shipping || {}
+                        shipping:    snap.shipping || {},
+                        sku:         snap.sku || '',
+                        quantity:    snap.quantity || 1,
+                        printSide:   snap.printSide || 'front'
                     });
                     await ref.update({
                         fulfillment:       'submitted',

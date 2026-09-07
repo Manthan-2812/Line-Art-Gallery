@@ -64,6 +64,7 @@ exports.handler = async (event) => {
         return json(502, { error: 'Could not confirm order with Razorpay' });
     }
     const notes = order.notes || {};
+    const quantity = Math.max(1, parseInt(notes.quantity, 10) || 1);
 
     // 3) Persist order (idempotent) + bump live metric
     try {
@@ -89,6 +90,9 @@ exports.handler = async (event) => {
                 orderId:     razorpay_order_id,
                 amount:      order.amount,        // paise
                 currency:    order.currency,
+                quantity:    quantity,
+                unitPrice:   notes.unitPrice ? Number(notes.unitPrice) : null,
+                printSide:   printSide,
                 email:       notes.email    || '',
                 clerkUserId,
                 shipping,
@@ -116,7 +120,9 @@ exports.handler = async (event) => {
                     email:       notes.email    || '',
                     amountInr:   Math.round((order.amount || 0) / 100),  // paise -> INR
                     shipping,
-                    sku:         notes.sku      || ''
+                    sku:         notes.sku      || '',
+                    quantity:    quantity,
+                    printSide:   printSide
                 });
                 await ref.update({
                     fulfillment:       'submitted',
@@ -142,7 +148,9 @@ exports.handler = async (event) => {
                         email:       snap.email || '',
                         amountInr:   Math.round((snap.amount || 0) / 100),
                         shipping:    snap.shipping || {},
-                        sku:         snap.sku || ''
+                        sku:         snap.sku || '',
+                        quantity:    snap.quantity || 1,
+                        printSide:   snap.printSide || 'front'
                     });
                     await ref.update({
                         fulfillment:       'submitted',

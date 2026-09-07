@@ -187,6 +187,7 @@ function MetricsBar() {
 
 
 function App() {
+    
     const { useState, useEffect, useRef } = React;
     const { motion, AnimatePresence } = window.Motion;
 
@@ -196,6 +197,8 @@ function App() {
     const aboutRef   = useRef(null);
     const sparkIdRef = useRef(0);
     const [sparks,   setSparks]   = useState([]);
+    const [showTAC, setShowTAC] = useState(false);
+    const [showDelivery, setShowDelivery] = useState(false);
 
     useEffect(() => {
         const t = setTimeout(() => setIsLoaded(true), 120);
@@ -568,6 +571,34 @@ function App() {
                     to   { opacity: 1; transform: translateY(0);    }
                 }
             `}} />
+
+          {/* Bottom Footer */}
+<footer className="relative z-10 border-t border-white/10 py-8 px-6 text-center text-xs text-slate-400">
+    <div className="flex flex-wrap justify-center items-center gap-6">
+        <span>© 2026 Line and Layer Gallery</span>
+        <button 
+            onClick={() => setShowTAC(true)} 
+            className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors"
+        >
+            Terms & Conditions
+        </button>
+        <button 
+            onClick={() => setShowDelivery(true)} 
+            className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors"
+        >
+            Delivery Instructions
+        </button>
+    </div>
+</footer>
+
+{/* Terms & Conditions Modal */}
+<TAC isOpen={showTAC} onClose={() => setShowTAC(false)} /> 
+
+{/* Delivery Instructions Modal */}
+<DeliveryInstructions isOpen={showDelivery} onClose={() => setShowDelivery(false)} /> 
+
+{/* Bottom PWA Install Prompt Banner */}
+{typeof PWAInstallBanner !== 'undefined' && <PWAInstallBanner />}
         </div>
     );
 }
