@@ -23,11 +23,13 @@ function PWAInstallBanner() {
 
         // 3. Listen for browser native install prompt
         const handler = (e) => {
-            e.preventDefault();
-            setInstallPrompt(e);
-            window.__deferredPwaPrompt = e;
+            if (e && e.preventDefault) e.preventDefault();
+            const promptEvent = e.detail || e;
+            setInstallPrompt(promptEvent);
+            window.__deferredPwaPrompt = promptEvent;
         };
         window.addEventListener('beforeinstallprompt', handler);
+        window.addEventListener('pwa-prompt-ready', handler);
 
         // Also check if previously captured
         if (window.__deferredPwaPrompt) {
@@ -51,6 +53,7 @@ function PWAInstallBanner() {
         return () => {
             clearTimeout(timer);
             window.removeEventListener('beforeinstallprompt', handler);
+            window.removeEventListener('pwa-prompt-ready', handler);
             window.removeEventListener('appinstalled', onAppInstalled);
         };
     }, []);
@@ -62,36 +65,40 @@ function PWAInstallBanner() {
 
     const isIos = () => {
         const ua = window.navigator.userAgent.toLowerCase();
-        return /iphone|ipad|ipod/.test(ua);
+        return /iphone|ipad|ipod/.test(ua) && !window.MSStream;
     };
 
     const handleInstallClick = async () => {
-        setInstalling(true);
+        const promptObj = installPrompt || window.__deferredPwaPrompt;
 
-        // iOS Safari Flow
-        if (isIos() || !installPrompt) {
-            // If iOS Safari or unsupported prompt, show guided prompt with animation
-            setTimeout(() => {
+        // If Android / Desktop with available native install prompt -> DIRECT 1-TAP INSTALL
+        if (promptObj && typeof promptObj.prompt === 'function') {
+            setInstalling(true);
+            try {
+                promptObj.prompt();
+                const { outcome } = await promptObj.userChoice;
+                if (outcome === 'accepted') {
+                    setInstalled(true);
+                    localStorage.setItem('pwa_prompt_dismissed', 'true');
+                    setTimeout(() => setVisible(false), 1500);
+                }
+            } catch (err) {
+                console.warn('Native install prompt error:', err);
+            } finally {
                 setInstalling(false);
-                setShowIosGuide(true);
-            }, 800);
+            }
             return;
         }
 
-        // Android / Chrome / Desktop Flow
-        try {
-            installPrompt.prompt();
-            const { outcome } = await installPrompt.userChoice;
-            if (outcome === 'accepted') {
-                setInstalled(true);
-                localStorage.setItem('pwa_prompt_dismissed', 'true');
-                setTimeout(() => setVisible(false), 2000);
-            }
-        } catch (err) {
-            console.warn('Install prompt error:', err);
-        } finally {
-            setInstalling(false);
+        // Only for iOS Safari (WebKit does not support programmatic prompt)
+        if (isIos()) {
+            setShowIosGuide(true);
+            return;
         }
+
+        // Fallback if prompt was already consumed
+        setInstalling(false);
+        setShowIosGuide(true);
     };
 
     if (!visible) return null;

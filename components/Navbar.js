@@ -24,23 +24,33 @@ function Navbar({ onAboutClick, onBrandClick }) {
     // Capture install prompt for the navbar install button
     useEffect(() => {
         const handler = (e) => {
-            e.preventDefault();
-            setInstallPrompt(e);
-            window.__deferredPwaPrompt = e;
+            if (e && e.preventDefault) e.preventDefault();
+            const promptEvent = e.detail || e;
+            setInstallPrompt(promptEvent);
+            window.__deferredPwaPrompt = promptEvent;
         };
         window.addEventListener('beforeinstallprompt', handler);
+        window.addEventListener('pwa-prompt-ready', handler);
         if (window.__deferredPwaPrompt) setInstallPrompt(window.__deferredPwaPrompt);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handler);
+            window.removeEventListener('pwa-prompt-ready', handler);
+        };
     }, []);
 
     const triggerInstall = async () => {
         const p = installPrompt || window.__deferredPwaPrompt;
-        if (p) {
-            p.prompt();
-            const { outcome } = await p.userChoice;
-            if (outcome === 'accepted') setInstallPrompt(null);
-        } else {
-            alert('To install the app on your phone or desktop, tap your browser menu (⋮ or Share) and select "Add to Home screen" / "Install app".');
+        if (p && typeof p.prompt === 'function') {
+            try {
+                p.prompt();
+                const { outcome } = await p.userChoice;
+                if (outcome === 'accepted') {
+                    setInstallPrompt(null);
+                    window.__deferredPwaPrompt = null;
+                }
+            } catch (err) {
+                console.warn('Install prompt error:', err);
+            }
         }
     };
 
