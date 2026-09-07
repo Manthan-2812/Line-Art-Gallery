@@ -18,8 +18,8 @@ function PWAInstallBanner() {
                              window.navigator.standalone === true;
         if (isStandalone) return;
 
-        // 2. Never show if dismissed previously (persisted in localStorage)
-        if (localStorage.getItem('pwa_prompt_dismissed') === 'true') return;
+        // 2. Do not show if dismissed in current browsing session
+        if (sessionStorage.getItem('pwa_banner_dismissed_session') === 'true') return;
 
         // 3. Listen for browser native install prompt
         const handler = (e) => {
@@ -36,16 +36,16 @@ function PWAInstallBanner() {
             setInstallPrompt(window.__deferredPwaPrompt);
         }
 
-        // Delay banner entrance slightly (1.5s) for smooth page arrival
+        // Display banner smoothly (1.2s after arrival)
         const timer = setTimeout(() => {
             setVisible(true);
-        }, 1500);
+        }, 1200);
 
         // Listen for successful install event
         const onAppInstalled = () => {
             setInstalling(false);
             setInstalled(true);
-            localStorage.setItem('pwa_prompt_dismissed', 'true');
+            sessionStorage.setItem('pwa_banner_dismissed_session', 'true');
             setTimeout(() => setVisible(false), 2500);
         };
         window.addEventListener('appinstalled', onAppInstalled);
@@ -60,7 +60,7 @@ function PWAInstallBanner() {
 
     const dismiss = () => {
         setVisible(false);
-        localStorage.setItem('pwa_prompt_dismissed', 'true');
+        sessionStorage.setItem('pwa_banner_dismissed_session', 'true');
     };
 
     const isIos = () => {
