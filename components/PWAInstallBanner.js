@@ -13,9 +13,10 @@ function PWAInstallBanner() {
     const [installed, setInstalled] = useState(false);
 
     useEffect(() => {
-        // 1. Never show if already running inside standalone installed PWA
+        // 1. Never show if already running inside standalone installed PWA or previously installed
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                             window.navigator.standalone === true;
+                             window.navigator.standalone === true ||
+                             localStorage.getItem('pwa_app_installed') === 'true';
         if (isStandalone) return;
 
         // 2. Do not show if dismissed in current browsing session
@@ -45,8 +46,9 @@ function PWAInstallBanner() {
         const onAppInstalled = () => {
             setInstalling(false);
             setInstalled(true);
+            localStorage.setItem('pwa_app_installed', 'true');
             sessionStorage.setItem('pwa_banner_dismissed_session', 'true');
-            setTimeout(() => setVisible(false), 2500);
+            setTimeout(() => setVisible(false), 2000);
         };
         window.addEventListener('appinstalled', onAppInstalled);
 
@@ -79,7 +81,8 @@ function PWAInstallBanner() {
                 const { outcome } = await promptObj.userChoice;
                 if (outcome === 'accepted') {
                     setInstalled(true);
-                    localStorage.setItem('pwa_prompt_dismissed', 'true');
+                    localStorage.setItem('pwa_app_installed', 'true');
+                    sessionStorage.setItem('pwa_banner_dismissed_session', 'true');
                     setTimeout(() => setVisible(false), 1500);
                 }
             } catch (err) {

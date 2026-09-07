@@ -138,26 +138,58 @@ function GalleryApp() {
     const [isProcessingBulk,    setIsProcessingBulk]    = useState(false);
     const [isDeletingAll,       setIsDeletingAll]       = useState(false);
     const [installPrompt,       setInstallPrompt]       = useState(null);
+    const [isAppInstalled,      setIsAppInstalled]      = useState(() => {
+        return (
+            (typeof window !== 'undefined' && (
+                window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true ||
+                localStorage.getItem('pwa_app_installed') === 'true'
+            ))
+        );
+    });
 
-    // Listen for PWA installation prompt
+    // Listen for PWA installation prompt & detection
     useEffect(() => {
         const handler = (e) => {
-            e.preventDefault();
-            setInstallPrompt(e);
+            if (e && e.preventDefault) e.preventDefault();
+            const promptEvent = e.detail || e;
+            setInstallPrompt(promptEvent);
+            window.__deferredPwaPrompt = promptEvent;
         };
+        const onInstalled = () => {
+            setIsAppInstalled(true);
+            localStorage.setItem('pwa_app_installed', 'true');
+            setInstallPrompt(null);
+            window.__deferredPwaPrompt = null;
+        };
+
         window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
+        window.addEventListener('pwa-prompt-ready', handler);
+        window.addEventListener('appinstalled', onInstalled);
+
+        if (window.__deferredPwaPrompt) setInstallPrompt(window.__deferredPwaPrompt);
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handler);
+            window.removeEventListener('pwa-prompt-ready', handler);
+            window.removeEventListener('appinstalled', onInstalled);
+        };
     }, []);
 
     const triggerInstall = async () => {
-        if (!installPrompt) {
-            alert('To install the app, tap your browser menu (⋮ or Share) and select "Add to Home screen" / "Install app".');
-            return;
-        }
-        installPrompt.prompt();
-        const { outcome } = await installPrompt.userChoice;
-        if (outcome === 'accepted') {
-            setInstallPrompt(null);
+        const p = installPrompt || window.__deferredPwaPrompt;
+        if (p && typeof p.prompt === 'function') {
+            try {
+                p.prompt();
+                const { outcome } = await p.userChoice;
+                if (outcome === 'accepted') {
+                    setIsAppInstalled(true);
+                    localStorage.setItem('pwa_app_installed', 'true');
+                    setInstallPrompt(null);
+                    window.__deferredPwaPrompt = null;
+                }
+            } catch (err) {
+                console.warn('Install prompt error:', err);
+            }
         }
     };
 
@@ -362,19 +394,21 @@ function GalleryApp() {
 
                 {/* Right side — Install App + My Orders + customer auth (Clerk) + admin controls */}
                 <div className="shrink-0 flex justify-end items-center gap-2">
-                    {/* Install App Quick Action (PWA) */}
-                    <button
-                        onClick={triggerInstall}
-                        className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200 bg-cyan-950/60 border border-cyan-500/40 hover:border-cyan-400 rounded-lg px-2.5 py-1.5 transition-all shadow-sm"
-                        title="Install Line & Layer App"
-                    >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                        <span>App</span>
-                    </button>
+                    {/* Install App Quick Action (PWA) - Removed once app is installed */}
+                    {!isAppInstalled && (
+                        <button
+                            onClick={triggerInstall}
+                            className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200 bg-cyan-950/60 border border-cyan-500/40 hover:border-cyan-400 rounded-lg px-2.5 py-1.5 transition-all shadow-sm"
+                            title="Install Line & Layer App"
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            <span>App</span>
+                        </button>
+                    )}
 
                     {/* My Orders button — only shown when signed in */}
                     {isSignedIn && (

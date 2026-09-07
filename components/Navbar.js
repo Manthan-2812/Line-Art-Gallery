@@ -20,8 +20,17 @@ function Navbar({ onAboutClick, onBrandClick }) {
     const [showOrders,  setShowOrders]  = useState(false);
     const [addressData, setAddressData] = useState(null);
     const [installPrompt, setInstallPrompt] = useState(null);
+    const [isAppInstalled, setIsAppInstalled] = useState(() => {
+        return (
+            (typeof window !== 'undefined' && (
+                window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true ||
+                localStorage.getItem('pwa_app_installed') === 'true'
+            ))
+        );
+    });
 
-    // Capture install prompt for the navbar install button
+    // Capture install prompt for the navbar install button & detect appinstalled
     useEffect(() => {
         const handler = (e) => {
             if (e && e.preventDefault) e.preventDefault();
@@ -29,12 +38,22 @@ function Navbar({ onAboutClick, onBrandClick }) {
             setInstallPrompt(promptEvent);
             window.__deferredPwaPrompt = promptEvent;
         };
+        const onInstalled = () => {
+            setIsAppInstalled(true);
+            localStorage.setItem('pwa_app_installed', 'true');
+            setInstallPrompt(null);
+            window.__deferredPwaPrompt = null;
+        };
+
         window.addEventListener('beforeinstallprompt', handler);
         window.addEventListener('pwa-prompt-ready', handler);
+        window.addEventListener('appinstalled', onInstalled);
+
         if (window.__deferredPwaPrompt) setInstallPrompt(window.__deferredPwaPrompt);
         return () => {
             window.removeEventListener('beforeinstallprompt', handler);
             window.removeEventListener('pwa-prompt-ready', handler);
+            window.removeEventListener('appinstalled', onInstalled);
         };
     }, []);
 
@@ -45,6 +64,8 @@ function Navbar({ onAboutClick, onBrandClick }) {
                 p.prompt();
                 const { outcome } = await p.userChoice;
                 if (outcome === 'accepted') {
+                    setIsAppInstalled(true);
+                    localStorage.setItem('pwa_app_installed', 'true');
                     setInstallPrompt(null);
                     window.__deferredPwaPrompt = null;
                 }
@@ -110,19 +131,21 @@ function Navbar({ onAboutClick, onBrandClick }) {
 
                 {/* Right-side controls */}
                 <div className="flex items-center gap-2 sm:gap-3">
-                    {/* Install App Button */}
-                    <button
-                        onClick={triggerInstall}
-                        className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-400/50 hover:border-cyan-300 rounded-xl px-2.5 sm:px-3 py-1.5 transition-all shadow-sm shrink-0"
-                        title="Install Line & Layer App"
-                    >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                        <span>Install App</span>
-                    </button>
+                    {/* Install App Button - Hidden once app is downloaded/installed */}
+                    {!isAppInstalled && (
+                        <button
+                            onClick={triggerInstall}
+                            className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-400/50 hover:border-cyan-300 rounded-xl px-2.5 sm:px-3 py-1.5 transition-all shadow-sm shrink-0"
+                            title="Install Line & Layer App"
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            <span>Install App</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={onAboutClick}
