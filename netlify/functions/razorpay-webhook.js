@@ -93,8 +93,20 @@ exports.handler = async (event) => {
         const existing = await ref.get();
 
         if (!existing.exists) {
-            const printUrl = notes.printUrl || '';
-            const email    = notes.email || payment.email || '';
+            let finalPrintUrl = notes.printUrl || '';
+            if ((!finalPrintUrl || finalPrintUrl.length < 10) && notes.artId) {
+                try {
+                    const artDoc = await db.collection('images').doc(notes.artId).get();
+                    if (artDoc.exists) {
+                        const artData = artDoc.data();
+                        finalPrintUrl = artData.url || artData.imageUrl || '';
+                    }
+                } catch (e) {
+                    console.error('[razorpay-webhook] art fallback fetch failed:', e);
+                }
+            }
+
+            const email       = notes.email || payment.email || '';
             const clerkUserId = notes.clerkUserId || '';
 
             let shipping = {};
@@ -126,7 +138,7 @@ exports.handler = async (event) => {
                 sku:         notes.sku      || '',
                 artId:       notes.artId    || '',
                 artName:     notes.artName  || '',
-                printUrl,
+                printUrl:    finalPrintUrl,
                 fulfillment: 'pending',
                 createdAt:   admin.firestore.FieldValue.serverTimestamp()
             });
@@ -142,7 +154,7 @@ exports.handler = async (event) => {
             try {
                 const { qikinkOrderId } = await submitToQikink({
                     orderNumber: paymentId,
-                    printUrl,
+                    printUrl:    finalPrintUrl,
                     email,
                     amountInr:   Math.round((payment.amount || 0) / 100),  // paise -> INR
                     shipping,

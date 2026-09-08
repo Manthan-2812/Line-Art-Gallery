@@ -83,6 +83,19 @@ exports.handler = async (event) => {
                 }
             }
 
+            let finalPrintUrl = notes.printUrl || '';
+            if ((!finalPrintUrl || finalPrintUrl.length < 10) && notes.artId) {
+                try {
+                    const artDoc = await db.collection('images').doc(notes.artId).get();
+                    if (artDoc.exists) {
+                        const artData = artDoc.data();
+                        finalPrintUrl = artData.url || artData.imageUrl || '';
+                    }
+                } catch (e) {
+                    console.error('[verify-payment] art fallback fetch failed:', e);
+                }
+            }
+
             await ref.set({
                 status:      'paid',
                 source:      'client-verify',
@@ -99,7 +112,7 @@ exports.handler = async (event) => {
                 sku:         notes.sku      || '',
                 artId:       notes.artId    || '',
                 artName:     notes.artName  || '',
-                printUrl:    notes.printUrl || '',
+                printUrl:    finalPrintUrl,
                 fulfillment: 'pending',
                 createdAt:   admin.firestore.FieldValue.serverTimestamp()
             });
@@ -116,7 +129,7 @@ exports.handler = async (event) => {
             try {
                 const { qikinkOrderId } = await submitToQikink({
                     orderNumber: razorpay_payment_id,
-                    printUrl:    notes.printUrl || '',
+                    printUrl:    finalPrintUrl,
                     email:       notes.email    || '',
                     amountInr:   Math.round((order.amount || 0) / 100),  // paise -> INR
                     shipping,
