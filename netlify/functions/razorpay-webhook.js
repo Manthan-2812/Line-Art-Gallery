@@ -94,12 +94,13 @@ exports.handler = async (event) => {
 
         if (!existing.exists) {
             let finalPrintUrl = notes.printUrl || '';
-            if ((!finalPrintUrl || finalPrintUrl.length < 10) && notes.artId) {
+            if (notes.artId) {
                 try {
                     const artDoc = await db.collection('images').doc(notes.artId).get();
                     if (artDoc.exists) {
-                        const artData = artDoc.data();
-                        finalPrintUrl = artData.url || artData.imageUrl || '';
+                        const artData = artDoc.data() || {};
+                        // Priority: 2nd URL (print master) -> notes.printUrl -> 1st URL (display image)
+                        finalPrintUrl = artData.printUrl || artData.printMasterUrl || finalPrintUrl || artData.url || artData.imageUrl || '';
                     }
                 } catch (e) {
                     console.error('[razorpay-webhook] art fallback fetch failed:', e);

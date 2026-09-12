@@ -288,6 +288,13 @@ function GalleryApp() {
             .catch(err => console.error('[Firebase] update price failed:', err));
     };
 
+    // Attach, update or remove the 300-DPI Print Master URL (2nd URL) for an artwork — admin only
+    const handleUpdatePrintUrl = (id, newPrintUrl) => {
+        const cleanUrl = (newPrintUrl && typeof newPrintUrl === 'string') ? newPrintUrl.trim() : null;
+        updateImageInFirebase(id, { printUrl: cleanUrl || null })
+            .catch(err => console.error('[Firebase] update printUrl failed:', err));
+    };
+
     // Bulk delete all artworks — admin only
     const handleDeleteAll = async () => {
         if (images.length === 0) {
@@ -526,6 +533,7 @@ function GalleryApp() {
                                         onPin={handlePin}
                                         onRename={handleRename}
                                         onUpdatePrice={handleUpdatePrice}
+                                        onUpdatePrintUrl={handleUpdatePrintUrl}
                                         isNewestRecent={img.id === newestRecentId}
                                     />
                                 </div>
@@ -547,6 +555,7 @@ function GalleryApp() {
                                     onPin={handlePin}
                                     onRename={handleRename}
                                     onUpdatePrice={handleUpdatePrice}
+                                    onUpdatePrintUrl={handleUpdatePrintUrl}
                                     isNewestRecent={img.id === newestRecentId}
                                 />
                             </div>

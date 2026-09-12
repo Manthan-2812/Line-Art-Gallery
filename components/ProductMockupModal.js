@@ -43,6 +43,9 @@ function ProductMockupModal({ isOpen, onClose, onProceed, artwork, selectedColor
     const config = colorConfigs[selectedColor] || colorConfigs.Wh;
     const isDoubleSided = printSide === 'both';
 
+    const previewImage = artwork.printUrl || artwork.printMasterUrl || artwork.url;
+    const hasTransparentMaster = !!(artwork.printUrl || artwork.printMasterUrl);
+
     return (
         <div 
             className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md transition-all duration-300"
@@ -63,9 +66,16 @@ function ProductMockupModal({ isOpen, onClose, onProceed, artwork, selectedColor
                 </button>
 
                 <div className="mb-4">
-                    <span className="inline-block bg-cyan-500/20 text-cyan-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-1.5">
-                        Realistic Product Preview
-                    </span>
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="inline-block bg-cyan-500/20 text-cyan-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                            Realistic Product Preview
+                        </span>
+                        {hasTransparentMaster && (
+                            <span className="inline-block bg-purple-500/20 text-purple-300 border border-purple-400/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                300 DPI Transparent Master
+                            </span>
+                        )}
+                    </div>
                     <h3 className="text-2xl sm:text-3xl font-extrabold text-white truncate leading-tight">
                         {artwork.name || 'Custom Artwork Print'}
                     </h3>
@@ -172,11 +182,11 @@ function ProductMockupModal({ isOpen, onClose, onProceed, artwork, selectedColor
                             className="absolute top-[28%] left-1/2 -translate-x-1/2 w-[36%] aspect-[3/4] max-h-[46%] rounded-md flex items-center justify-center p-1 pointer-events-none transition-all duration-300"
                             style={{
                                 filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.25))',
-                                mixBlendMode: selectedColor === 'Wh' ? 'multiply' : 'normal'
+                                mixBlendMode: (!hasTransparentMaster && selectedColor === 'Wh') ? 'multiply' : 'normal'
                             }}
                         >
                             <img 
-                                src={artwork.url} 
+                                src={previewImage} 
                                 alt="Front Artwork Print"
                                 className="w-full h-full object-contain rounded filter contrast-105"
                             />
@@ -188,11 +198,11 @@ function ProductMockupModal({ isOpen, onClose, onProceed, artwork, selectedColor
                                 className="absolute top-[28%] left-1/2 -translate-x-1/2 w-[36%] aspect-[3/4] max-h-[46%] rounded-md flex items-center justify-center p-1 pointer-events-none transition-all duration-300"
                                 style={{
                                     filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.25))',
-                                    mixBlendMode: selectedColor === 'Wh' ? 'multiply' : 'normal'
+                                    mixBlendMode: (!hasTransparentMaster && selectedColor === 'Wh') ? 'multiply' : 'normal'
                                 }}
                             >
                                 <img 
-                                    src={artwork.url} 
+                                    src={previewImage} 
                                     alt="Back Artwork Print"
                                     className="w-full h-full object-contain rounded filter contrast-105"
                                 />

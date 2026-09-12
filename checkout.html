@@ -212,7 +212,8 @@
         const printSide = q.get('printSide') || 'front';
         const root    = document.getElementById('checkout-root');
 
-        const printMaster = (typeof getPrintMasterUrl === 'function') ? getPrintMasterUrl(img) : img;
+        const printUrlParam = q.get('printUrl') || '';
+        const printMaster = printUrlParam || ((typeof getPrintMasterUrl === 'function' && img) ? getPrintMasterUrl(img) : img);
         window.__ORDER_PRINT_URL = printMaster;
 
         if (!sku || !price) {

@@ -83,6 +83,19 @@ exports.handler = async (event) => {
         key_secret: process.env.RAZORPAY_KEY_SECRET
     });
 
+    let resolvedPrintUrl = printUrl || '';
+    if (artId) {
+        try {
+            const artDoc = await db.collection('images').doc(String(artId)).get();
+            if (artDoc.exists) {
+                const artData = artDoc.data() || {};
+                resolvedPrintUrl = artData.printUrl || artData.printMasterUrl || resolvedPrintUrl || artData.url || artData.imageUrl || '';
+            }
+        } catch (e) {
+            console.warn('[create-order] Could not fetch artDoc for printUrl:', e && e.message);
+        }
+    }
+
     try {
         const order = await razorpay.orders.create({
             amount:   Math.round(totalAmountInr * 100),   // paise
@@ -93,7 +106,7 @@ exports.handler = async (event) => {
                 email,
                 artId:       artId    || '',
                 artName:     String(artName || '').slice(0, 120),
-                printUrl:    printUrl || '',
+                printUrl:    resolvedPrintUrl || '',
                 clerkUserId: clerkUserId || '',
                 quantity:    String(quantity),
                 unitPrice:   String(unitPriceInr),

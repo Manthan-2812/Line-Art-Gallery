@@ -2,13 +2,14 @@
 // components/GalleryCard.js
 //
 // Gallery Card Component:
+//   • Dual-URL support: Display URL (1st URL) + Optional 300-DPI Print Master (2nd URL)
+//   • Smooth lazy image loading with optimized Cloudinary transforms & skeleton shimmer
 //   • Liked state (synced with user account / localStorage)
 //   • T-Shirt buy modal with Color & Size selection
-//   • Admin controls (Pin, Rename, Delete)
-//   • Responsive image loading with Cloudinary auto-format & lazy loading
+//   • Admin controls (Pin, Rename, Price edit, Print Master attachment, Delete)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUpdatePrice, isNewestRecent }) {
+function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUpdatePrice, onUpdatePrintUrl, isNewestRecent }) {
     const { useState, useEffect, useRef } = React;
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
@@ -28,23 +29,31 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         ? Number(image.blueOffset) 
         : 50;
 
-    const [liked, setLiked]                 = useState(isArtLiked);
-    const [imgLoaded, setImgLoaded]         = useState(false);
-    const [editingName, setEditingName]     = useState(false);
-    const [nameDraft, setNameDraft]         = useState('');
+    const [liked, setLiked]                         = useState(isArtLiked);
+    const [imgLoaded, setImgLoaded]                 = useState(false);
+    const [imgError, setImgError]                   = useState(false);
+    const [editingName, setEditingName]             = useState(false);
+    const [nameDraft, setNameDraft]                 = useState('');
     const [editingPriceModal, setEditingPriceModal] = useState(false);
-    const [priceDraft, setPriceDraft]       = useState(currentPrice);
-    const [blueOffsetDraft, setBlueOffsetDraft] = useState(currentBlueOffset);
-    const titleInputRef                     = useRef(null);
+    const [priceDraft, setPriceDraft]               = useState(currentPrice);
+    const [blueOffsetDraft, setBlueOffsetDraft]     = useState(currentBlueOffset);
+    
+    // Print Master Modal State (Admin)
+    const [editingPrintModal, setEditingPrintModal] = useState(false);
+    const [printUrlDraft, setPrintUrlDraft]         = useState(image.printUrl || '');
+    const [isUploadingPrintMaster, setIsUploadingPrintMaster] = useState(false);
+    const [printUploadError, setPrintUploadError]   = useState('');
+    const printFileInputRef                         = useRef(null);
+    const titleInputRef                             = useRef(null);
     
     // Purchase modal state: selected Color, Size, Print Placement & Quantity (Bulk Order)
-    const [showBuy, setShowBuy]             = useState(false);
-    const [showMockupModal, setShowMockupModal] = useState(false);
+    const [showBuy, setShowBuy]                     = useState(false);
+    const [showMockupModal, setShowMockupModal]     = useState(false);
     const [showDualPrintWarning, setShowDualPrintWarning] = useState(false);
-    const [selectedColor, setSelectedColor] = useState('Wh');
-    const [selectedSize, setSelectedSize]   = useState('M');
-    const [printSide, setPrintSide]         = useState('front'); // 'front' | 'both'
-    const [quantity, setQuantity]           = useState(1);
+    const [selectedColor, setSelectedColor]         = useState('Wh');
+    const [selectedSize, setSelectedSize]           = useState('M');
+    const [printSide, setPrintSide]                 = useState('front'); // 'front' | 'both'
+    const [quantity, setQuantity]                   = useState(1);
 
     // Dynamic price based on color selection & custom blue offset & dual print offset (+₹200)
     const colorOffset = selectedColor === 'Nb' ? currentBlueOffset : 0;
@@ -60,7 +69,8 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     useEffect(() => {
         setPriceDraft(currentPrice);
         setBlueOffsetDraft(currentBlueOffset);
-    }, [image.price, image.blueOffset]);
+        setPrintUrlDraft(image.printUrl || '');
+    }, [image.price, image.blueOffset, image.printUrl]);
 
     // Auto-select title text when entering rename mode (admin)
     useEffect(() => {
@@ -70,6 +80,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     }, [editingName]);
 
     const artworkName = image.name || 'Untitled Artwork';
+    const hasPrintMaster = !!(image.printUrl || image.printMasterUrl);
 
     // Admin rename: enter edit mode, persist on save
     const startEditName = () => { setNameDraft(image.name || ''); setEditingName(true); };
@@ -92,17 +103,57 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         }
     };
 
+    // Admin Print Master file upload directly to Cloudinary
+    const handlePrintMasterFileUpload = async (file) => {
+        if (!file) return;
+        setPrintUploadError('');
+        setIsUploadingPrintMaster(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('upload_preset', 'vfxnz7wq');
+
+            const res = await fetch('https://api.cloudinary.com/v1_1/dd6s1dgx3/image/upload', {
+                method: 'POST',
+                body: fd
+            });
+            const data = await res.json();
+            if (data.secure_url) {
+                setPrintUrlDraft(data.secure_url);
+                if (onUpdatePrintUrl) onUpdatePrintUrl(image.id, data.secure_url);
+                setEditingPrintModal(false);
+            } else {
+                throw new Error(data.error?.message || 'Upload failed');
+            }
+        } catch (err) {
+            console.error('Print master upload error:', err);
+            setPrintUploadError(err.message || 'Failed to upload print master');
+        } finally {
+            setIsUploadingPrintMaster(false);
+        }
+    };
+
+    const savePrintUrl = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        if (onUpdatePrintUrl) {
+            onUpdatePrintUrl(image.id, printUrlDraft.trim() || null);
+        }
+        setEditingPrintModal(false);
+    };
+
     // Navigate to checkout with chosen SKU, artwork price and quantity
     const proceedToCheckout = () => {
         const sku = `MVnHs-${selectedColor}-${selectedSize}`;
         const colorObj = (window.PRODUCT_COLORS || []).find(c => c.id === selectedColor);
         const colorName = colorObj ? colorObj.name : 'Classic White';
         const finalQty = Math.max(1, parseInt(quantity, 10) || 1);
+        const finalPrintUrl = image.printUrl || image.printMasterUrl || image.url;
         
         const params = new URLSearchParams({
             art:       image.id,
             name:      artworkName,
             img:       image.url,
+            printUrl:  finalPrintUrl,
             sku:       sku,
             price:     String(totalPrice),
             unitPrice: String(unitPrice),
@@ -167,26 +218,27 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         </svg>
     );
 
-    // Optimized Cloudinary thumbnail URL (auto-format WebP/AVIF, auto-quality, scaled width)
-    const optimizedImageUrl = (typeof getPrintMasterUrl === 'function') 
-        ? image.url.replace('/upload/', '/upload/f_auto,q_auto,w_800/') 
-        : image.url;
+    // Optimized Cloudinary thumbnail URL (auto-format WebP/AVIF, auto-quality, max width 700px for smooth multi-image loading)
+    const rawUrl = image.url || '';
+    const optimizedImageUrl = (rawUrl.includes('/image/upload/'))
+        ? rawUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto:good,w_700,c_limit/')
+        : rawUrl;
 
     return (
         <div
-            className="relative group bg-slate-800/80 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col transition-all duration-300"
+            className="relative group bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700/50 flex flex-col transition-all duration-300 hover:border-cyan-500/40 hover:shadow-xl shadow-md"
             data-name="GalleryCard"
         >
             {/* Admin: pin button — top-left */}
             {isAdmin && (
                 <button
                     onClick={() => onPin(image.id, !!image.pinned)}
-                    className={`absolute top-2 left-2 z-20 p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${image.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${
+                    className={`absolute top-2 left-2 z-20 p-1.5 rounded-full transition-all duration-200 hover:scale-110 shadow-md ${image.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${
                         image.pinned
                             ? 'bg-amber-400 text-slate-900'
-                            : 'bg-slate-700/80 hover:bg-amber-400 text-white hover:text-slate-900'
+                            : 'bg-slate-800/90 hover:bg-amber-400 text-white hover:text-slate-900 border border-white/15'
                     }`}
-                    title={image.pinned ? 'Unpin' : 'Pin to top'}
+                    title={image.pinned ? 'Unpin from top' : 'Pin to top'}
                 >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill={image.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                         <line x1="12" y1="17" x2="12" y2="22"/>
@@ -195,39 +247,70 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 </button>
             )}
 
-            {/* Admin: delete button — top-right */}
+            {/* Admin Top-Right Control Group: Print Master badge + Delete */}
             {isAdmin && (
-                <button
-                    onClick={() => onDelete(image.id)}
-                    className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-full transition-all duration-200 hover:scale-110"
-                    title="Delete artwork"
-                >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                </button>
+                <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    {/* Admin Print Master Button */}
+                    <button
+                        onClick={() => setEditingPrintModal(true)}
+                        className={`p-1.5 rounded-full transition-all duration-200 hover:scale-110 shadow-md border ${
+                            hasPrintMaster
+                                ? 'bg-purple-600/90 text-white border-purple-400/50'
+                                : 'bg-slate-800/90 hover:bg-purple-600 text-slate-300 hover:text-white border-white/15'
+                        }`}
+                        title={hasPrintMaster ? 'Print Master Attached (300 DPI) — Click to Edit' : 'Attach 300 DPI Transparent Print Master'}
+                    >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M6 9V2h12v7"/>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                            <rect x="6" y="14" width="12" height="8"/>
+                        </svg>
+                    </button>
+
+                    {/* Admin Delete Button */}
+                    <button
+                        onClick={() => onDelete(image.id)}
+                        className="bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-full transition-all duration-200 hover:scale-110 shadow-md border border-red-400/40"
+                        title="Delete artwork"
+                    >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                </div>
             )}
 
-            {/* Image container — natural aspect ratio without cropping (Pinterest masonry) */}
-            <div className="relative overflow-hidden bg-slate-900 min-h-[120px]">
-                {!imgLoaded && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 min-h-[140px]">
-                        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+            {/* Image container — natural aspect ratio without cropping with smooth shimmer */}
+            <div className="relative overflow-hidden bg-slate-900 min-h-[140px] flex items-center justify-center">
+                {/* Skeleton Shimmer while image loads */}
+                {!imgLoaded && !imgError && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-800 via-slate-700/50 to-slate-800 animate-pulse flex items-center justify-center">
+                        <div className="w-7 h-7 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin opacity-80" />
                     </div>
                 )}
-                <img
-                    src={optimizedImageUrl}
-                    alt={artworkName}
-                    loading="lazy"
-                    decoding="async"
-                    onLoad={() => setImgLoaded(true)}
-                    className={`w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-                />
+
+                {imgError ? (
+                    <div className="p-6 text-center text-slate-500 text-xs">
+                        <p>Artwork preview unavailable</p>
+                    </div>
+                ) : (
+                    <img
+                        src={optimizedImageUrl}
+                        alt={artworkName}
+                        loading="lazy"
+                        decoding="async"
+                        onLoad={() => setImgLoaded(true)}
+                        onError={() => setImgError(true)}
+                        className={`w-full h-auto block group-hover:scale-[1.02] transition-all duration-300 ${
+                            imgLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                    />
+                )}
             </div>
 
             {/* Artwork title & Rename control */}
-            <div className="bg-slate-900/90 px-3 py-2 flex items-center justify-between border-t border-white/5 z-10 shrink-0 min-h-[36px]">
+            <div className="bg-slate-900/90 px-3 py-2 flex items-center justify-between border-t border-white/5 z-10 shrink-0 min-h-[38px]">
                 {isAdmin && editingName ? (
                     <form
                         onSubmit={(e) => { e.preventDefault(); saveName(); }}
@@ -240,14 +323,21 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             onChange={(e) => setNameDraft(e.target.value)}
                             onBlur={saveName}
                             onKeyDown={(e) => { if (e.key === 'Escape') setEditingName(false); }}
-                            className="w-full bg-slate-800 border border-cyan-400 rounded px-2 py-0.5 text-xs text-white focus:outline-none"
+                            className="w-full bg-slate-800 border border-cyan-400 rounded-lg px-2 py-0.5 text-xs text-white focus:outline-none"
                             autoFocus
                         />
                     </form>
                 ) : (
-                    <span className="flex-1 text-sm font-semibold text-slate-100 truncate" title={artworkName}>
-                        {artworkName}
-                    </span>
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                        <span className="text-xs sm:text-sm font-semibold text-slate-100 truncate" title={artworkName}>
+                            {artworkName}
+                        </span>
+                        {isAdmin && hasPrintMaster && (
+                            <span className="shrink-0 text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30 px-1.5 py-0.2 rounded" title="300-DPI Print Master attached">
+                                300DPI
+                            </span>
+                        )}
+                    </div>
                 )}
                 {isAdmin && !editingName && (
                     <button
@@ -255,7 +345,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         className="shrink-0 text-slate-400 hover:text-cyan-400 transition-colors p-1"
                         title="Rename artwork"
                     >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>
                         </svg>
                     </button>
@@ -293,6 +383,130 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                     )}
                 </div>
             </div>
+
+            {/* Buy button */}
+            <button
+                onClick={() => setShowBuy(true)}
+                className="w-full text-white text-xs font-bold py-2.5 hover:opacity-95 transition-all z-10 shrink-0 flex items-center justify-center gap-1.5 shadow-md active:scale-98 cursor-pointer"
+                style={{ background: 'linear-gradient(90deg,#06b6d4,#6366f1)' }}
+            >
+                <span>Buy T-Shirt Print</span>
+            </button>
+
+            {/* Admin Print Master Management Modal */}
+            {isAdmin && editingPrintModal && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+                    onClick={() => setEditingPrintModal(false)}
+                >
+                    <div 
+                        className="bg-slate-900 border border-purple-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl relative"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setEditingPrintModal(false)}
+                            className="absolute top-4 right-4 text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30 uppercase">
+                                Dual-URL Print System
+                            </span>
+                        </div>
+                        <h4 className="text-lg font-bold text-white mb-1">300-DPI Print Master</h4>
+                        <p className="text-xs text-slate-400 mb-4">{artworkName}</p>
+
+                        <div className="space-y-4">
+                            {/* Upload New Print Master Button */}
+                            <div 
+                                onClick={() => printFileInputRef.current?.click()}
+                                className="p-4 rounded-2xl border-2 border-dashed border-purple-400/50 hover:border-purple-400 bg-purple-950/20 hover:bg-purple-950/30 cursor-pointer text-center transition-all"
+                            >
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c084fc" strokeWidth="1.8" className="mx-auto mb-1.5">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <p className="text-xs font-bold text-purple-200">
+                                    {isUploadingPrintMaster ? 'Uploading to Cloudinary…' : 'Upload Transparent 300 DPI PNG'}
+                                </p>
+                                <p className="text-[11px] text-slate-400 mt-0.5">
+                                    Direct upload replaces the print file
+                                </p>
+                                <input
+                                    ref={printFileInputRef}
+                                    type="file"
+                                    accept="image/png,image/*"
+                                    className="hidden"
+                                    disabled={isUploadingPrintMaster}
+                                    onChange={e => handlePrintMasterFileUpload(e.target.files[0])}
+                                />
+                            </div>
+
+                            {printUploadError && (
+                                <p className="text-xs text-red-400 bg-red-950/40 border border-red-500/30 rounded-xl p-2 text-center">
+                                    {printUploadError}
+                                </p>
+                            )}
+
+                            {/* Or Paste URL Form */}
+                            <form onSubmit={savePrintUrl} className="space-y-3">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Or Cloudinary Print URL (2nd URL)
+                                    </label>
+                                    <input
+                                        type="url"
+                                        placeholder="https://res.cloudinary.com/.../transparent.png"
+                                        value={printUrlDraft}
+                                        onChange={e => setPrintUrlDraft(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-purple-400"
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1">
+                                        Leave empty to revert to using the Display Image as the print asset.
+                                    </p>
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                                    {image.printUrl ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (confirm('Remove print master and revert to display image?')) {
+                                                    if (onUpdatePrintUrl) onUpdatePrintUrl(image.id, null);
+                                                    setEditingPrintModal(false);
+                                                }
+                                            }}
+                                            className="text-xs text-red-400 hover:text-red-300 font-semibold"
+                                        >
+                                            Remove Master
+                                        </button>
+                                    ) : <span />}
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditingPrintModal(false)}
+                                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-950 bg-purple-400 hover:bg-purple-300 transition-all"
+                                        >
+                                            Save URL
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Individual Card Price & Offset Edit Modal (Admin) */}
             {isAdmin && editingPriceModal && (
@@ -357,15 +571,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                     </div>
                 </div>
             )}
-
-            {/* Buy button */}
-            <button
-                onClick={() => setShowBuy(true)}
-                className="w-full text-white text-xs font-bold py-2.5 hover:opacity-90 transition-opacity z-10 shrink-0 flex items-center justify-center gap-1.5 shadow-md"
-                style={{ background: 'linear-gradient(90deg,#06b6d4,#6366f1)' }}
-            >
-                <span>Buy T-Shirt Print</span>
-            </button>
 
             {/* T-Shirt Color, Size & Quantity selection modal */}
             {showBuy && (
@@ -513,18 +718,18 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         </div>
 
                         {/* 4. Quantity / Bulk Order Selector */}
-                        <div className="mb-6">
-                            <div className="flex justify-between items-center mb-3">
+                        <div className="mb-5 flex items-center justify-between bg-slate-800/60 border border-white/10 p-3 sm:p-3.5 rounded-2xl">
+                            <div>
                                 <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">
-                                    4. Quantity (Bulk Order)
+                                    4. Quantity
                                 </label>
-                                <span className="text-[11px] text-slate-400">Default: 1 Item</span>
+                                <span className="text-[10px] text-slate-400">Bulk order support</span>
                             </div>
-                            <div className="flex items-center gap-3 bg-slate-800/80 border border-white/10 p-2.5 rounded-2xl">
+                            <div className="flex items-center gap-1.5 bg-slate-900 border border-white/15 p-1 rounded-xl">
                                 <button
                                     type="button"
                                     onClick={() => setQuantity(q => Math.max(1, (parseInt(q, 10) || 1) - 1))}
-                                    className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-lg flex items-center justify-center transition-colors disabled:opacity-40"
+                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-sm flex items-center justify-center transition-colors disabled:opacity-30 cursor-pointer"
                                     disabled={quantity <= 1}
                                 >
                                     −
@@ -543,13 +748,13 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                             setQuantity(1);
                                         }
                                     }}
-                                    className="flex-1 bg-slate-900 border border-white/15 rounded-xl py-2 px-3 text-center text-white font-bold text-lg focus:outline-none focus:border-cyan-400"
+                                    className="w-11 sm:w-13 bg-transparent text-center text-white font-bold text-sm sm:text-base focus:outline-none"
                                     placeholder="1"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setQuantity(q => (parseInt(q, 10) || 1) + 1)}
-                                    className="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-lg flex items-center justify-center transition-colors"
+                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-sm flex items-center justify-center transition-colors cursor-pointer"
                                 >
                                     +
                                 </button>
@@ -584,7 +789,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                     setShowBuy(false);
                                     setShowMockupModal(true);
                                 }}
-                                className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5"
+                                className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                                 <span>Preview Product &rarr;</span>
                             </button>
