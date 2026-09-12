@@ -103,27 +103,54 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         }
     };
 
-    // Admin Print Master file upload directly to Cloudinary
+    // Admin Print Master file upload directly to Cloudinary with live progress
+    const [printUploadPct, setPrintUploadPct] = useState(0);
+
     const handlePrintMasterFileUpload = async (file) => {
         if (!file) return;
         setPrintUploadError('');
         setIsUploadingPrintMaster(true);
+        setPrintUploadPct(0);
+
         try {
             const fd = new FormData();
             fd.append('file', file);
             fd.append('upload_preset', 'vfxnz7wq');
 
-            const res = await fetch('https://api.cloudinary.com/v1_1/dd6s1dgx3/image/upload', {
-                method: 'POST',
-                body: fd
+            const uploadPromise = new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', 'https://api.cloudinary.com/v1_1/dd6s1dgx3/auto/upload', true);
+                xhr.timeout = 240000; // 4 minutes
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        setPrintUploadPct(Math.round((e.loaded / e.total) * 100));
+                    }
+                };
+
+                xhr.onload = () => {
+                    try {
+                        const data = JSON.parse(xhr.responseText || '{}');
+                        if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
+                            resolve(data);
+                        } else {
+                            reject(new Error(data.error?.message || `Upload failed (HTTP ${xhr.status})`));
+                        }
+                    } catch (err) {
+                        reject(new Error('Invalid response from upload server'));
+                    }
+                };
+
+                xhr.onerror = () => reject(new Error('Network error during upload'));
+                xhr.ontimeout = () => reject(new Error('Upload timed out'));
+                xhr.send(fd);
             });
-            const data = await res.json();
+
+            const data = await uploadPromise;
             if (data.secure_url) {
                 setPrintUrlDraft(data.secure_url);
                 if (onUpdatePrintUrl) onUpdatePrintUrl(image.id, data.secure_url);
                 setEditingPrintModal(false);
-            } else {
-                throw new Error(data.error?.message || 'Upload failed');
             }
         } catch (err) {
             console.error('Print master upload error:', err);
@@ -431,11 +458,19 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                     <line x1="12" y1="3" x2="12" y2="15"/>
                                 </svg>
                                 <p className="text-xs font-bold text-purple-200">
-                                    {isUploadingPrintMaster ? 'Uploading to Cloudinary…' : 'Upload Transparent 300 DPI PNG'}
+                                    {isUploadingPrintMaster ? `Uploading to Cloudinary: ${printUploadPct}%` : 'Upload Transparent 300 DPI PNG'}
                                 </p>
                                 <p className="text-[11px] text-slate-400 mt-0.5">
-                                    Direct upload replaces the print file
+                                    {isUploadingPrintMaster ? 'Please wait while transferring large asset…' : 'Direct upload replaces the print file'}
                                 </p>
+                                {isUploadingPrintMaster && (
+                                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2 max-w-[200px] mx-auto">
+                                        <div 
+                                            className="bg-purple-400 h-full rounded-full transition-all duration-200"
+                                            style={{ width: `${printUploadPct}%` }}
+                                        />
+                                    </div>
+                                )}
                                 <input
                                     ref={printFileInputRef}
                                     type="file"

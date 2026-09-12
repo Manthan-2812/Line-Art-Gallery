@@ -4,9 +4,10 @@
 // Admin artwork upload modal supporting:
 //   1. Quick Multi-Upload: Bulk drop/browse multiple gallery images at once.
 //   2. Dual-Asset Upload: Upload a Display Image + an Optional 300-DPI Transparent Print Master PNG.
+//   3. Large File Support: Live progress tracking, MB counter, and robust error handling.
 //
 // Direct Cloudinary upload endpoint (no SDK required):
-//   POST https://api.cloudinary.com/v1_1/{cloud_name}/image/upload
+//   POST https://api.cloudinary.com/v1_1/{cloud_name}/auto/upload
 //   FormData: file, upload_preset
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
 
     // Quick Multi-Upload state
     const [status, setStatus] = useState('idle'); // 'idle' | 'drag-over' | 'uploading' | 'done'
-    const [progress, setProgress] = useState([]);  // [{name, pct, done, url, err}]
+    const [progress, setProgress] = useState([]);  // [{name, pct, done, url, err, loadedMb, totalMb}]
     const quickInputRef = useRef(null);
 
     // Dual-Asset Upload state
@@ -27,44 +28,100 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
     const [displayFile, setDisplayFile] = useState(null);
     const [printFile, setPrintFile] = useState(null);
     const [dualUploading, setDualUploading] = useState(false);
-    const [dualUploadStep, setDualUploadStep] = useState(''); // e.g. 'Uploading display image...'
+    const [dualUploadStep, setDualUploadStep] = useState(''); // e.g. 'Uploading display image (45% - 5.2 MB / 11.5 MB)...'
+    const [dualUploadPct, setDualUploadPct] = useState(0);
     const [dualError, setDualError] = useState('');
     const [dualSuccess, setDualSuccess] = useState(false);
     const displayInputRef = useRef(null);
     const printInputRef = useRef(null);
 
-    // Helper to upload a single raw file to Cloudinary
-    const uploadFileToCloudinary = async (file) => {
-        if (!cloudName || cloudName === 'YOUR_CLOUD_NAME') {
-            throw new Error('Cloudinary cloud name is not configured.');
-        }
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('upload_preset', uploadPreset);
+    // Helper: format bytes to readable MB/KB
+    const formatBytes = (bytes) => {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = 1;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    };
 
-        const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-            { method: 'POST', body: fd }
-        );
-        const data = await res.json();
-        if (data.secure_url) {
-            return {
-                url: data.secure_url,
-                public_id: data.public_id
+    // Helper: Upload a file to Cloudinary with real-time XHR progress
+    const uploadFileToCloudinary = (file, onProgress) => {
+        return new Promise((resolve, reject) => {
+            if (!cloudName || cloudName === 'YOUR_CLOUD_NAME') {
+                return reject(new Error('Cloudinary cloud name is not configured.'));
+            }
+            if (!file) {
+                return reject(new Error('No file selected.'));
+            }
+
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('upload_preset', uploadPreset || 'vfxnz7wq');
+
+            const xhr = new XMLHttpRequest();
+            // Use auto/upload to support large images, raw assets, and PNGs
+            xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, true);
+            xhr.timeout = 240000; // 4 minutes timeout for large 300 DPI files
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable && typeof onProgress === 'function') {
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    onProgress(pct, e.loaded, e.total);
+                }
             };
-        }
-        throw new Error(data.error?.message || 'Upload failed');
+
+            xhr.onload = () => {
+                try {
+                    const data = JSON.parse(xhr.responseText || '{}');
+                    if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
+                        resolve({
+                            url: data.secure_url,
+                            public_id: data.public_id
+                        });
+                    } else {
+                        const errMsg = data.error?.message || `Upload failed with HTTP ${xhr.status}`;
+                        reject(new Error(errMsg));
+                    }
+                } catch (err) {
+                    reject(new Error(`Server response parse error (${xhr.status}): ${xhr.responseText?.slice(0, 150)}`));
+                }
+            };
+
+            xhr.onerror = () => {
+                reject(new Error('Network error during upload. Please check your internet connection.'));
+            };
+
+            xhr.ontimeout = () => {
+                reject(new Error('Upload timed out. The file may be too large for the current connection.'));
+            };
+
+            xhr.send(fd);
+        });
     };
 
     // ── QUICK MULTI-UPLOAD HANDLER ──────────────────────────────────────────
     const uploadOne = async (file, idx) => {
         try {
-            const data = await uploadFileToCloudinary(file);
+            const data = await uploadFileToCloudinary(file, (pct, loaded, total) => {
+                setProgress(p => {
+                    const next = [...p];
+                    next[idx] = { 
+                        ...next[idx], 
+                        pct, 
+                        loadedMb: formatBytes(loaded), 
+                        totalMb: formatBytes(total) 
+                    };
+                    return next;
+                });
+            });
+
             setProgress(p => {
                 const next = [...p];
                 next[idx] = { ...next[idx], pct: 100, done: true, url: data.url };
                 return next;
             });
+
             onUploaded({
                 id:       data.public_id || Date.now().toString(),
                 url:      data.url,
@@ -86,7 +143,15 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
         const list = Array.from(files).filter(f => f.type.startsWith('image/'));
         if (!list.length) return;
 
-        const initial = list.map(f => ({ name: f.name, pct: 0, done: false, url: null, err: null }));
+        const initial = list.map(f => ({ 
+            name: f.name, 
+            pct: 0, 
+            done: false, 
+            url: null, 
+            err: null,
+            loadedMb: '0 MB',
+            totalMb: formatBytes(f.size)
+        }));
         setProgress(initial);
         setStatus('uploading');
 
@@ -114,19 +179,29 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
         }
         setDualError('');
         setDualUploading(true);
+        setDualUploadPct(0);
 
         try {
             // 1. Upload Display Image
-            setDualUploadStep('Uploading Display Image…');
-            const displayRes = await uploadFileToCloudinary(displayFile);
+            setDualUploadStep(`Uploading Display Image (${formatBytes(displayFile.size)})…`);
+            const displayRes = await uploadFileToCloudinary(displayFile, (pct, loaded, total) => {
+                setDualUploadPct(Math.round(pct * (printFile ? 0.45 : 0.95)));
+                setDualUploadStep(`Uploading Display Image: ${pct}% (${formatBytes(loaded)} / ${formatBytes(total)})`);
+            });
 
             // 2. Upload Optional Print Master Image (if chosen)
             let printMasterUrl = null;
             if (printFile) {
-                setDualUploadStep('Uploading 300-DPI Print Master…');
-                const printRes = await uploadFileToCloudinary(printFile);
+                setDualUploadStep(`Uploading 300-DPI Print Master (${formatBytes(printFile.size)})…`);
+                const printRes = await uploadFileToCloudinary(printFile, (pct, loaded, total) => {
+                    setDualUploadPct(45 + Math.round(pct * 0.5));
+                    setDualUploadStep(`Uploading 300-DPI Print Master: ${pct}% (${formatBytes(loaded)} / ${formatBytes(total)})`);
+                });
                 printMasterUrl = printRes.url;
             }
+
+            setDualUploadPct(100);
+            setDualUploadStep('Finalizing artwork…');
 
             const cleanName = dualName.trim() || displayFile.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ") || 'Untitled Artwork';
             const priceVal = Number(dualPrice) || 900;
@@ -148,7 +223,12 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
             }, 1200);
         } catch (err) {
             console.error('Dual upload failed:', err);
-            setDualError(err.message || 'Failed to upload artwork');
+            const msg = err.message || 'Failed to upload artwork';
+            setDualError(
+                msg.includes('File size') 
+                    ? `${msg}. Note: Free Cloudinary presets typically limit files to 20MB. If exporting 300-DPI PNGs, save as standard PNG without uncompressed alpha channels.` 
+                    : msg
+            );
         } finally {
             setDualUploading(false);
         }
@@ -250,17 +330,17 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
                             {progress.map((item, i) => (
                                 <div key={i} className="rounded-xl border border-white/10 p-3.5 bg-white/5">
                                     <div className="flex justify-between text-xs text-slate-300 mb-1.5">
-                                        <span className="truncate max-w-[65%] font-medium">{item.name}</span>
-                                        <span className="font-semibold">
+                                        <span className="truncate max-w-[60%] font-medium">{item.name}</span>
+                                        <span className="font-semibold text-[11px] text-cyan-300">
                                             {item.err  ? '✗ Failed' :
-                                             item.done ? '✓ Uploaded' : 'Uploading…'}
+                                             item.done ? '✓ Uploaded' : `${item.pct}% (${item.loadedMb || '0 MB'} / ${item.totalMb || ''})`}
                                         </span>
                                     </div>
                                     <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
                                         <motion.div
                                             className="h-full rounded-full"
-                                            animate={{ width: item.done ? '100%' : item.err ? '100%' : '65%' }}
-                                            transition={{ duration: 0.4 }}
+                                            animate={{ width: item.done ? '100%' : item.err ? '100%' : `${item.pct}%` }}
+                                            transition={{ duration: 0.2 }}
                                             style={{
                                                 background: item.err  ? '#f87171'
                                                           : item.done ? '#4ade80'
@@ -342,7 +422,7 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
                                 {displayFile ? displayFile.name : 'Choose Gallery Photo'}
                             </p>
                             <p className="text-[11px] text-slate-400 mt-0.5">
-                                Shown on website & gallery
+                                {displayFile ? formatBytes(displayFile.size) : 'Shown on website & gallery'}
                             </p>
                             <input
                                 ref={displayInputRef}
@@ -369,7 +449,7 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
                                 {printFile ? printFile.name : 'Choose 300 DPI Transparent PNG'}
                             </p>
                             <p className="text-[11px] text-slate-400 mt-0.5">
-                                Sent to Qikink for print orders
+                                {printFile ? formatBytes(printFile.size) : 'Sent to Qikink for print orders'}
                             </p>
                             <input
                                 ref={printInputRef}
@@ -382,20 +462,31 @@ function FileUploadZone({ cloudName, uploadPreset, onUploaded, onClose }) {
                     </div>
 
                     <div className="bg-slate-800/60 border border-white/10 rounded-xl p-3 text-[11px] text-slate-400 leading-relaxed">
-                        <strong className="text-cyan-300 font-semibold">How Dual-URL works:</strong> If you attach a 300-DPI transparent Print Master, orders will automatically send that high-res file to Qikink for manufacturing. If omitted, orders safely default to the Display Image.
+                        <strong className="text-cyan-300 font-semibold">Dual-URL Print System:</strong> Attach your 300-DPI transparent PNG (e.g. 11×14 in at 300 DPI) for Qikink DTG printing. If omitted, orders default to the Display Image.
                     </div>
 
                     {dualError && (
-                        <p className="text-xs text-red-400 bg-red-950/40 border border-red-500/30 rounded-xl p-2.5 text-center">
+                        <p className="text-xs text-red-400 bg-red-950/40 border border-red-500/30 rounded-xl p-2.5 text-center leading-relaxed">
                             {dualError}
                         </p>
                     )}
 
                     {dualUploading && (
                         <div className="space-y-2 py-2">
-                            <div className="flex items-center justify-center gap-2 text-xs font-bold text-cyan-300">
-                                <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                                <span>{dualUploadStep}</span>
+                            <div className="flex justify-between items-center text-xs font-bold text-cyan-300">
+                                <div className="flex items-center gap-2 truncate">
+                                    <div className="w-3.5 h-3.5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                                    <span className="truncate">{dualUploadStep}</span>
+                                </div>
+                                <span className="shrink-0 font-mono">{dualUploadPct}%</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                                <motion.div
+                                    className="h-full rounded-full"
+                                    animate={{ width: `${dualUploadPct}%` }}
+                                    transition={{ duration: 0.2 }}
+                                    style={{ background: 'linear-gradient(90deg,#22d3ee,#a855f7)' }}
+                                />
                             </div>
                         </div>
                     )}
