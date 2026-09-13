@@ -256,10 +256,10 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             className="relative group bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700/50 flex flex-col transition-all duration-300 hover:border-cyan-500/40 hover:shadow-xl shadow-md"
             data-name="GalleryCard"
         >
-            {/* Recently Added (7-day newest) Badge */}
+            {/* Recently Added header bar — on top of card with bg green and font text color white */}
             {isNewestRecent && (
-                <div className={`absolute ${isAdmin ? 'top-10 left-2' : 'top-2.5 left-2.5'} z-20 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 text-white text-[10px] font-black uppercase tracking-wider shadow-xl border border-white/30 backdrop-blur-md`}>
-                    <span>✨</span>
+                <div className="bg-emerald-600 text-white text-[11px] font-bold py-1.5 px-3 text-center tracking-wider uppercase flex items-center justify-center gap-1.5 z-10 shrink-0 shadow-sm">
+                    <span>✦</span>
                     <span>Recently Added</span>
                 </div>
             )}
@@ -392,11 +392,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 {image.pinned && !isAdmin && (
                     <span className="bg-amber-400 text-slate-900 text-[9px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
                         ★ Featured
-                    </span>
-                )}
-                {isNewestRecent && !image.pinned && !isAdmin && (
-                    <span className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full pointer-events-none shadow-sm">
-                        ✨ New
                     </span>
                 )}
                 <button
