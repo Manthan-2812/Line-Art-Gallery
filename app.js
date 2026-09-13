@@ -531,9 +531,19 @@ function App() {
                             </a>
 
                             {/* Email */}
-                            <a href="mailto:manthanparekh9d@gmail.com"
-                                className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/10 hover:border-cyan-400/40 transition-all"
-                                style={{ background: 'rgba(255,255,255,0.05)' }}>
+                            <a 
+                                href="https://mail.google.com/mail/?view=cm&fs=1&to=manthanparekh9d@gmail.com"
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => {
+                                    // If mobile device, trigger mailto app; otherwise open Gmail compose tab
+                                    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                                        window.location.href = 'mailto:manthanparekh9d@gmail.com';
+                                    }
+                                }}
+                                className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/10 hover:border-cyan-400/40 transition-all cursor-pointer"
+                                style={{ background: 'rgba(255,255,255,0.05)' }}
+                            >
                                 <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                                     style={{ background: '#0e7490' }}>
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
