@@ -54,6 +54,8 @@
 
     <!-- EmailJS browser SDK — sends notification emails directly from the browser -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- html2pdf.js for high-definition client-side PDF invoice export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <!-- Firebase (compat CDN — no npm/bundler needed) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -170,6 +172,7 @@
     <script type="text/babel" src="utils/store.js"></script>
     <script type="text/babel" src="components/ClerkAuth.js"></script>
     <script type="text/babel" src="components/AddressModal.js"></script>
+    <script src="utils/invoice-generator.js"></script>
     <script type="text/babel" src="components/OrderHistoryDrawer.js"></script>
     <!-- Firebase config + helpers (must load before gallery-app.js) -->
     <script type="text/babel" src="utils/firebase.js"></script>

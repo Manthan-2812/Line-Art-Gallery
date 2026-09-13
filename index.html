@@ -46,6 +46,8 @@
     <!-- Firebase (compat CDN) — for live metric counters -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <!-- html2pdf.js for high-definition client-side PDF invoice export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style type="text/tailwindcss">
     @layer base {
@@ -162,6 +164,7 @@
     <script type="text/babel" src="components/ClerkAuth.js"></script>
     <script type="text/babel" src="components/Navbar.js"></script>
     <script type="text/babel" src="components/AddressModal.js"></script>
+    <script src="utils/invoice-generator.js"></script>
     <script type="text/babel" src="components/OrderHistoryDrawer.js"></script>
     <script type="text/babel" src="components/TransitionOverlay.js"></script>
     <!-- Hero draggable cards + About Me pixelated portrait -->

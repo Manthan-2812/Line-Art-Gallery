@@ -18,6 +18,15 @@ window.PRODUCT_SIZES = [
     { size: 'XXL', label: 'XX-Large (46" Chest)' }
 ];
 
+// Stock availability checker per Qikink catalog rules
+window.isVariantAvailable = function(colorId, size) {
+    // Navy Blue ('Nb') is NOT available in Size XL
+    if (colorId === 'Nb' && (size === 'XL' || size === 'X-Large')) {
+        return false;
+    }
+    return true;
+};
+
 // Helper to generate SKU: MVnHs-[Color]-[Size]
 window.getTshirtSku = function(colorId, size) {
     return `MVnHs-${colorId}-${size}`;
@@ -27,14 +36,16 @@ window.PRODUCT_VARIANTS = [];
 window.PRODUCT_COLORS.forEach(c => {
     window.PRODUCT_SIZES.forEach(s => {
         const offset = c.priceOffset || 0;
+        const available = window.isVariantAvailable(c.id, s.size);
         window.PRODUCT_VARIANTS.push({
-            sku:      `MVnHs-${c.id}-${s.size}`,
-            colorId:  c.id,
+            sku:       `MVnHs-${c.id}-${s.size}`,
+            colorId:   c.id,
             colorName: c.name,
-            size:     s.size,
-            label:    `${c.name} — Size ${s.size}`,
-            spec:     '100% Combed Cotton • 180 GSM • Front DTG Print',
-            price:    900 + offset
+            size:      s.size,
+            label:     `${c.name} — Size ${s.size}`,
+            spec:      '100% Combed Cotton • 180 GSM • Front DTG Print',
+            price:     900 + offset,
+            available: available
         });
     });
 });

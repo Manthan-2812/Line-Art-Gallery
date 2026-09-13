@@ -39,6 +39,11 @@ async function getPriceForSku(sku, artId, printSide) {
         }
     }
 
+    // Size XL in Navy Blue is not available in Qikink catalog
+    if (sku.toUpperCase() === 'MVNHS-NB-XL') {
+        return null;
+    }
+
     const isBlue = sku.startsWith('MVnHs-Nb') || sku.toLowerCase().includes('-nb-');
     const colorOffset = isBlue ? blueOffset : 0;
     const printOffset = printSide === 'both' ? 200 : 0;

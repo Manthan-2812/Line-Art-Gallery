@@ -43,6 +43,10 @@ function OrderHistoryDrawer({ isOpen, onClose }) {
 
     const printInvoicePDF = (inv) => {
         if (!inv) return;
+        if (typeof window.downloadInvoicePdf === 'function') {
+            window.downloadInvoicePdf(inv);
+            return;
+        }
         const printWin = window.open('', '_blank', 'width=800,height=900');
         if (!printWin) {
             window.print();

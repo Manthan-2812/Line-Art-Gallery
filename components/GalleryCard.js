@@ -256,6 +256,14 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             className="relative group bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700/50 flex flex-col transition-all duration-300 hover:border-cyan-500/40 hover:shadow-xl shadow-md"
             data-name="GalleryCard"
         >
+            {/* Recently Added (7-day newest) Badge */}
+            {isNewestRecent && (
+                <div className={`absolute ${isAdmin ? 'top-10 left-2' : 'top-2.5 left-2.5'} z-20 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 text-white text-[10px] font-black uppercase tracking-wider shadow-xl border border-white/30 backdrop-blur-md`}>
+                    <span>✨</span>
+                    <span>Recently Added</span>
+                </div>
+            )}
+
             {/* Admin: pin button — top-left */}
             {isAdmin && (
                 <button
@@ -384,6 +392,11 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 {image.pinned && !isAdmin && (
                     <span className="bg-amber-400 text-slate-900 text-[9px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
                         ★ Featured
+                    </span>
+                )}
+                {isNewestRecent && !image.pinned && !isAdmin && (
+                    <span className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full pointer-events-none shadow-sm">
+                        ✨ New
                     </span>
                 )}
                 <button
@@ -647,6 +660,10 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                     const active = selectedColor === c.id;
                                     const cOffset = c.id === 'Nb' ? currentBlueOffset : 0;
                                     const colorPrice = currentPrice + cOffset;
+                                    const isColorAvailInSelectedSize = (typeof window.isVariantAvailable === 'function')
+                                        ? window.isVariantAvailable(c.id, selectedSize)
+                                        : !(c.id === 'Nb' && selectedSize === 'XL');
+
                                     return (
                                         <button
                                             key={c.id}
@@ -654,10 +671,10 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                             onClick={() => setSelectedColor(c.id)}
                                             className={`relative flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border transition-all ${
                                                 active ? 'border-cyan-400 bg-cyan-500/20 shadow-md ring-1 ring-cyan-400' : 'border-white/10 bg-slate-800/60 hover:border-white/30'
-                                            }`}
+                                            } ${!isColorAvailInSelectedSize ? 'border-amber-500/40' : ''}`}
                                         >
                                             <span
-                                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border shadow-md"
+                                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border shadow-md relative"
                                                 style={{ backgroundColor: c.hex, borderColor: c.border }}
                                             />
                                             <div className="text-center">
@@ -667,6 +684,11 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                                 <span className="block text-[10px] text-slate-400 mt-0.5">
                                                     ₹{colorPrice}
                                                 </span>
+                                                {!isColorAvailInSelectedSize && (
+                                                    <span className="inline-block text-[9px] font-bold text-amber-300 mt-0.5 bg-amber-500/20 px-1.5 py-0.2 rounded-full">
+                                                        XL N/A
+                                                    </span>
+                                                )}
                                             </div>
                                         </button>
                                     );
@@ -682,18 +704,34 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             <div className="grid grid-cols-5 gap-2.5">
                                 {(window.PRODUCT_SIZES || []).map(s => {
                                     const active = selectedSize === s.size;
+                                    const isAvail = (typeof window.isVariantAvailable === 'function')
+                                        ? window.isVariantAvailable(selectedColor, s.size)
+                                        : !(selectedColor === 'Nb' && s.size === 'XL');
+
                                     return (
                                         <button
                                             key={s.size}
                                             type="button"
-                                            onClick={() => setSelectedSize(s.size)}
-                                            className={`py-3 sm:py-3.5 rounded-2xl border font-bold text-sm sm:text-base transition-all ${
+                                            onClick={() => {
+                                                setSelectedSize(s.size);
+                                            }}
+                                            className={`py-3 sm:py-3.5 rounded-2xl border font-bold text-sm sm:text-base transition-all relative ${
                                                 active
-                                                    ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-lg scale-105'
-                                                    : 'bg-slate-800 border-white/10 text-slate-200 hover:border-cyan-400/50'
+                                                    ? (isAvail
+                                                        ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-lg scale-105'
+                                                        : 'bg-red-500/30 text-red-200 border-red-500 shadow-lg scale-105')
+                                                    : (isAvail
+                                                        ? 'bg-slate-800 border-white/10 text-slate-200 hover:border-cyan-400/50'
+                                                        : 'bg-slate-900/60 border-red-500/20 text-slate-500 line-through')
                                             }`}
+                                            title={!isAvail ? 'This size is not available in Navy Blue' : ''}
                                         >
-                                            {s.size}
+                                            <span>{s.size}</span>
+                                            {!isAvail && (
+                                                <span className="block text-[8px] font-mono no-underline text-red-400">
+                                                    N/A
+                                                </span>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -704,6 +742,23 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                 }</span>
                             </p>
                         </div>
+
+                        {/* Unavailable Variant Warning Box */}
+                        {((typeof window.isVariantAvailable === 'function') 
+                            ? !window.isVariantAvailable(selectedColor, selectedSize) 
+                            : (selectedColor === 'Nb' && selectedSize === 'XL')) && (
+                            <div className="mb-6 p-4 rounded-2xl bg-red-950/40 border border-red-500/50 text-red-200 text-xs flex items-start gap-3 shadow-xl animate-shake">
+                                <span className="text-xl shrink-0">⚠️</span>
+                                <div>
+                                    <p className="font-extrabold text-white text-xs sm:text-sm">
+                                        Navy Blue is not available in Size XL
+                                    </p>
+                                    <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
+                                        Per catalog inventory, Navy Blue does not come in Size XL. Please select <strong className="text-cyan-300">Classic White</strong> or <strong className="text-cyan-300">Midnight Black</strong>, or choose a different size (S, M, L, XXL).
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* 3. Mandatory Print Placement Selector */}
                         <div className="mb-6">
@@ -819,15 +874,26 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             >
                                 Cancel
                             </button>
-                            <button
-                                onClick={() => {
-                                    setShowBuy(false);
-                                    setShowMockupModal(true);
-                                }}
-                                className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                                <span>Preview Product &rarr;</span>
-                            </button>
+                            {((typeof window.isVariantAvailable === 'function') 
+                                ? window.isVariantAvailable(selectedColor, selectedSize) 
+                                : !(selectedColor === 'Nb' && selectedSize === 'XL')) ? (
+                                <button
+                                    onClick={() => {
+                                        setShowBuy(false);
+                                        setShowMockupModal(true);
+                                    }}
+                                    className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                    <span>Preview Product &rarr;</span>
+                                </button>
+                            ) : (
+                                <button
+                                    disabled
+                                    className="w-2/3 text-xs sm:text-sm font-bold text-slate-400 py-3.5 sm:py-4 bg-slate-800/80 border border-red-500/30 rounded-2xl transition-all flex items-center justify-center gap-1.5 opacity-60 cursor-not-allowed"
+                                >
+                                    <span>Variant Unavailable</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
