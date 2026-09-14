@@ -1,13 +1,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // utils/products.js
 //
-// T-Shirt catalog with Color & Size options.
+// T-Shirt catalog with Color & Size options matching Qikink inventory.
+// Colors: White, Black, Navy Blue, Grey Melange, Royal Blue, Red.
 // ─────────────────────────────────────────────────────────────────────────────
 
 window.PRODUCT_COLORS = [
-    { id: 'Wh', name: 'Classic White',  hex: '#f8fafc', border: '#cbd5e1', priceOffset: 0 },
-    { id: 'Bk', name: 'Midnight Black', hex: '#090d16', border: '#334155', priceOffset: 0 },
-    { id: 'Nb', name: 'Navy Blue',      hex: '#1e293b', border: '#475569', priceOffset: 50 }
+    { id: 'Wh', name: 'Classic White',  shortName: 'White',        hex: '#f8fafc', border: '#cbd5e1', priceOffset: 0,  primary: true },
+    { id: 'Bk', name: 'Midnight Black', shortName: 'Black',        hex: '#090d16', border: '#334155', priceOffset: 0,  primary: true },
+    { id: 'Nb', name: 'Navy Blue',      shortName: 'Navy Blue',    hex: '#172554', border: '#3b82f6', priceOffset: 50, primary: true },
+    { id: 'Gm', name: 'Grey Melange',   shortName: 'Grey Melange', hex: '#94a3b8', border: '#64748b', priceOffset: 0,  primary: false },
+    { id: 'Rb', name: 'Royal Blue',     shortName: 'Royal Blue',   hex: '#2563eb', border: '#60a5fa', priceOffset: 50, primary: false },
+    { id: 'Rd', name: 'Crimson Red',    shortName: 'Red',          hex: '#dc2626', border: '#ef4444', priceOffset: 50, primary: false }
 ];
 
 window.PRODUCT_SIZES = [
@@ -20,10 +24,7 @@ window.PRODUCT_SIZES = [
 
 // Stock availability checker per Qikink catalog rules
 window.isVariantAvailable = function(colorId, size) {
-    // Navy Blue ('Nb') is NOT available in Size XL
-    if (colorId === 'Nb' && (size === 'XL' || size === 'X-Large')) {
-        return false;
-    }
+    // All sizes (S, M, L, XL, XXL) are available for all 6 active colors
     return true;
 };
 
@@ -36,7 +37,6 @@ window.PRODUCT_VARIANTS = [];
 window.PRODUCT_COLORS.forEach(c => {
     window.PRODUCT_SIZES.forEach(s => {
         const offset = c.priceOffset || 0;
-        const available = window.isVariantAvailable(c.id, s.size);
         window.PRODUCT_VARIANTS.push({
             sku:       `MVnHs-${c.id}-${s.size}`,
             colorId:   c.id,
@@ -45,7 +45,7 @@ window.PRODUCT_COLORS.forEach(c => {
             label:     `${c.name} — Size ${s.size}`,
             spec:      '100% Combed Cotton • 180 GSM • Front DTG Print',
             price:     900 + offset,
-            available: available
+            available: true
         });
     });
 });

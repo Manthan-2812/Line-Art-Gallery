@@ -25,18 +25,21 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         ? Number(image.price) 
         : 900;
 
-    const currentBlueOffset = (image.blueOffset !== undefined && image.blueOffset !== null && !isNaN(Number(image.blueOffset))) 
-        ? Number(image.blueOffset) 
-        : 50;
+    const legacyBlue = (image.blueOffset !== undefined && !isNaN(Number(image.blueOffset))) ? Number(image.blueOffset) : 50;
+    const currentNavyOffset = (image.navyOffset !== undefined && image.navyOffset !== null && !isNaN(Number(image.navyOffset))) ? Number(image.navyOffset) : legacyBlue;
+    const currentRoyalBlueOffset = (image.royalBlueOffset !== undefined && image.royalBlueOffset !== null && !isNaN(Number(image.royalBlueOffset))) ? Number(image.royalBlueOffset) : legacyBlue;
+    const currentRedOffset = (image.redOffset !== undefined && image.redOffset !== null && !isNaN(Number(image.redOffset))) ? Number(image.redOffset) : legacyBlue;
 
-    const [liked, setLiked]                         = useState(isArtLiked);
-    const [imgLoaded, setImgLoaded]                 = useState(false);
-    const [imgError, setImgError]                   = useState(false);
-    const [editingName, setEditingName]             = useState(false);
-    const [nameDraft, setNameDraft]                 = useState('');
-    const [editingPriceModal, setEditingPriceModal] = useState(false);
-    const [priceDraft, setPriceDraft]               = useState(currentPrice);
-    const [blueOffsetDraft, setBlueOffsetDraft]     = useState(currentBlueOffset);
+    const [liked, setLiked]                                 = useState(isArtLiked);
+    const [imgLoaded, setImgLoaded]                         = useState(false);
+    const [imgError, setImgError]                           = useState(false);
+    const [editingName, setEditingName]                     = useState(false);
+    const [nameDraft, setNameDraft]                         = useState('');
+    const [editingPriceModal, setEditingPriceModal]         = useState(false);
+    const [priceDraft, setPriceDraft]                       = useState(currentPrice);
+    const [navyOffsetDraft, setNavyOffsetDraft]             = useState(currentNavyOffset);
+    const [royalBlueOffsetDraft, setRoyalBlueOffsetDraft]   = useState(currentRoyalBlueOffset);
+    const [redOffsetDraft, setRedOffsetDraft]               = useState(currentRedOffset);
     
     // Print Master Modal State (Admin)
     const [editingPrintModal, setEditingPrintModal] = useState(false);
@@ -48,6 +51,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     
     // Purchase modal state: selected Color, Size, Print Placement & Quantity (Bulk Order)
     const [showBuy, setShowBuy]                     = useState(false);
+    const [showAllColors, setShowAllColors]         = useState(false);
     const [showMockupModal, setShowMockupModal]     = useState(false);
     const [showDualPrintWarning, setShowDualPrintWarning] = useState(false);
     const [selectedColor, setSelectedColor]         = useState('Wh');
@@ -55,8 +59,15 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     const [printSide, setPrintSide]                 = useState('front'); // 'front' | 'both'
     const [quantity, setQuantity]                   = useState(1);
 
-    // Dynamic price based on color selection & custom blue offset & dual print offset (+₹200)
-    const colorOffset = selectedColor === 'Nb' ? currentBlueOffset : 0;
+    // Dynamic price based on color selection & custom color offsets & dual print offset (+₹200)
+    const getColorOffset = (cId) => {
+        if (cId === 'Nb') return currentNavyOffset;
+        if (cId === 'Rb') return currentRoyalBlueOffset;
+        if (cId === 'Rd') return currentRedOffset;
+        return 0; // Wh, Bk, Gm
+    };
+
+    const colorOffset = getColorOffset(selectedColor);
     const printOffset = printSide === 'both' ? 200 : 0;
     const unitPrice   = currentPrice + colorOffset + printOffset;
     const totalPrice  = unitPrice * Math.max(1, quantity);
@@ -68,9 +79,11 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
 
     useEffect(() => {
         setPriceDraft(currentPrice);
-        setBlueOffsetDraft(currentBlueOffset);
+        setNavyOffsetDraft(currentNavyOffset);
+        setRoyalBlueOffsetDraft(currentRoyalBlueOffset);
+        setRedOffsetDraft(currentRedOffset);
         setPrintUrlDraft(image.printUrl || '');
-    }, [image.price, image.blueOffset, image.printUrl]);
+    }, [image.price, image.navyOffset, image.royalBlueOffset, image.redOffset, image.blueOffset, image.printUrl]);
 
     // Auto-select title text when entering rename mode (admin)
     useEffect(() => {
@@ -97,9 +110,19 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         if (e && e.preventDefault) e.preventDefault();
         setEditingPriceModal(false);
         const parsedP = Number(priceDraft);
-        const parsedO = Number(blueOffsetDraft);
-        if (!isNaN(parsedP) && parsedP > 0 && !isNaN(parsedO) && parsedO >= 0) {
-            if (onUpdatePrice) onUpdatePrice(image.id, parsedP, parsedO);
+        const parsedNavy = Number(navyOffsetDraft);
+        const parsedRoyal = Number(royalBlueOffsetDraft);
+        const parsedRed = Number(redOffsetDraft);
+
+        if (!isNaN(parsedP) && parsedP > 0 && !isNaN(parsedNavy) && parsedNavy >= 0 && !isNaN(parsedRoyal) && parsedRoyal >= 0 && !isNaN(parsedRed) && parsedRed >= 0) {
+            if (onUpdatePrice) {
+                onUpdatePrice(image.id, parsedP, {
+                    navyOffset: parsedNavy,
+                    royalBlueOffset: parsedRoyal,
+                    redOffset: parsedRed,
+                    blueOffset: parsedNavy
+                });
+            }
         }
     };
 
@@ -567,7 +590,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         <form onSubmit={savePriceAndOffset} className="space-y-3">
                             <div>
                                 <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-                                    Base Price (INR ₹)
+                                    Base Price (White, Black, Grey) — INR ₹
                                 </label>
                                 <input
                                     type="number"
@@ -579,20 +602,67 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                 />
                             </div>
 
-                            <div>
-                                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-                                    Navy Blue Extra Offset (+INR ₹)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={blueOffsetDraft}
-                                    onChange={e => setBlueOffsetDraft(e.target.value)}
-                                    className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
-                                />
-                                <p className="text-[10px] text-cyan-300 mt-1">
-                                    Navy Blue will cost: ₹{(Number(priceDraft) || 0) + (Number(blueOffsetDraft) || 0)}
-                                </p>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-blue-300 uppercase tracking-wider mb-1">
+                                        Navy Blue (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={navyOffsetDraft}
+                                        onChange={e => setNavyOffsetDraft(e.target.value)}
+                                        className="w-full bg-slate-800 border border-blue-400/30 rounded-xl px-2.5 py-1.5 text-white font-bold text-xs focus:outline-none focus:border-blue-400"
+                                        placeholder="50"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-cyan-300 uppercase tracking-wider mb-1">
+                                        Royal Blue (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={royalBlueOffsetDraft}
+                                        onChange={e => setRoyalBlueOffsetDraft(e.target.value)}
+                                        className="w-full bg-slate-800 border border-cyan-400/30 rounded-xl px-2.5 py-1.5 text-white font-bold text-xs focus:outline-none focus:border-cyan-400"
+                                        placeholder="50"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-red-300 uppercase tracking-wider mb-1">
+                                        Crimson Red (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={redOffsetDraft}
+                                        onChange={e => setRedOffsetDraft(e.target.value)}
+                                        className="w-full bg-slate-800 border border-red-400/30 rounded-xl px-2.5 py-1.5 text-white font-bold text-xs focus:outline-none focus:border-red-400"
+                                        placeholder="50"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-800/80 rounded-2xl p-3 border border-white/10 space-y-1 text-[11px]">
+                                <div className="flex justify-between text-slate-300">
+                                    <span>White / Black / Grey:</span>
+                                    <span className="font-bold text-white">₹{Number(priceDraft) || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-blue-300">
+                                    <span>Navy Blue:</span>
+                                    <span className="font-bold">₹{(Number(priceDraft) || 0) + (Number(navyOffsetDraft) || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-cyan-300">
+                                    <span>Royal Blue:</span>
+                                    <span className="font-bold">₹{(Number(priceDraft) || 0) + (Number(royalBlueOffsetDraft) || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-red-300">
+                                    <span>Crimson Red:</span>
+                                    <span className="font-bold">₹{(Number(priceDraft) || 0) + (Number(redOffsetDraft) || 0)}</span>
+                                </div>
                             </div>
 
                             <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
@@ -645,19 +715,25 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             </div>
                         </div>
 
-                        {/* 1. Color Selector */}
+                        {/* 1. Color Selector with See More toggle */}
                         <div className="mb-6">
-                            <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">
-                                1. Select T-Shirt Color
-                            </label>
+                            <div className="flex justify-between items-center mb-3">
+                                <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">
+                                    1. Select T-Shirt Color
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllColors(v => !v)}
+                                    className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                    <span>{showAllColors ? '− Show Fewer' : '+ See More Colors'}</span>
+                                </button>
+                            </div>
                             <div className="grid grid-cols-3 gap-3">
-                                {(window.PRODUCT_COLORS || []).map(c => {
+                                {(window.PRODUCT_COLORS || []).filter(c => showAllColors || c.primary || selectedColor === c.id).map(c => {
                                     const active = selectedColor === c.id;
-                                    const cOffset = c.id === 'Nb' ? currentBlueOffset : 0;
+                                    const cOffset = getColorOffset(c.id);
                                     const colorPrice = currentPrice + cOffset;
-                                    const isColorAvailInSelectedSize = (typeof window.isVariantAvailable === 'function')
-                                        ? window.isVariantAvailable(c.id, selectedSize)
-                                        : !(c.id === 'Nb' && selectedSize === 'XL');
 
                                     return (
                                         <button
@@ -665,8 +741,8 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                             type="button"
                                             onClick={() => setSelectedColor(c.id)}
                                             className={`relative flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border transition-all ${
-                                                active ? 'border-cyan-400 bg-cyan-500/20 shadow-md ring-1 ring-cyan-400' : 'border-white/10 bg-slate-800/60 hover:border-white/30'
-                                            } ${!isColorAvailInSelectedSize ? 'border-amber-500/40' : ''}`}
+                                                active ? 'border-cyan-400 bg-cyan-500/20 shadow-md ring-1 ring-cyan-400 scale-[1.02]' : 'border-white/10 bg-slate-800/60 hover:border-white/30'
+                                            }`}
                                         >
                                             <span
                                                 className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border shadow-md relative"
@@ -674,21 +750,27 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                             />
                                             <div className="text-center">
                                                 <span className={`block text-xs sm:text-sm font-semibold ${active ? 'text-cyan-300 font-bold' : 'text-slate-300'}`}>
-                                                    {c.name.split(' ')[1] || c.name}
+                                                    {c.shortName || c.name}
                                                 </span>
                                                 <span className="block text-[10px] text-slate-400 mt-0.5">
                                                     ₹{colorPrice}
                                                 </span>
-                                                {!isColorAvailInSelectedSize && (
-                                                    <span className="inline-block text-[9px] font-bold text-amber-300 mt-0.5 bg-amber-500/20 px-1.5 py-0.2 rounded-full">
-                                                        XL N/A
-                                                    </span>
-                                                )}
                                             </div>
                                         </button>
                                     );
                                 })}
                             </div>
+                            {!showAllColors && (
+                                <div className="mt-2 text-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllColors(true)}
+                                        className="text-[11px] font-semibold text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                                    >
+                                        + 3 more colors available (Grey Melange, Royal Blue, Crimson Red)
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* 2. Size Selector */}
@@ -699,34 +781,18 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             <div className="grid grid-cols-5 gap-2.5">
                                 {(window.PRODUCT_SIZES || []).map(s => {
                                     const active = selectedSize === s.size;
-                                    const isAvail = (typeof window.isVariantAvailable === 'function')
-                                        ? window.isVariantAvailable(selectedColor, s.size)
-                                        : !(selectedColor === 'Nb' && s.size === 'XL');
-
                                     return (
                                         <button
                                             key={s.size}
                                             type="button"
-                                            onClick={() => {
-                                                setSelectedSize(s.size);
-                                            }}
-                                            className={`py-3 sm:py-3.5 rounded-2xl border font-bold text-sm sm:text-base transition-all relative ${
+                                            onClick={() => setSelectedSize(s.size)}
+                                            className={`py-3 sm:py-3.5 rounded-2xl border font-bold text-sm sm:text-base transition-all ${
                                                 active
-                                                    ? (isAvail
-                                                        ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-lg scale-105'
-                                                        : 'bg-red-500/30 text-red-200 border-red-500 shadow-lg scale-105')
-                                                    : (isAvail
-                                                        ? 'bg-slate-800 border-white/10 text-slate-200 hover:border-cyan-400/50'
-                                                        : 'bg-slate-900/60 border-red-500/20 text-slate-500 line-through')
+                                                    ? 'bg-cyan-400 text-slate-950 border-cyan-400 shadow-lg scale-105'
+                                                    : 'bg-slate-800 border-white/10 text-slate-200 hover:border-cyan-400/50'
                                             }`}
-                                            title={!isAvail ? 'This size is not available in Navy Blue' : ''}
                                         >
-                                            <span>{s.size}</span>
-                                            {!isAvail && (
-                                                <span className="block text-[8px] font-mono no-underline text-red-400">
-                                                    N/A
-                                                </span>
-                                            )}
+                                            {s.size}
                                         </button>
                                     );
                                 })}
@@ -737,23 +803,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                 }</span>
                             </p>
                         </div>
-
-                        {/* Unavailable Variant Warning Box */}
-                        {((typeof window.isVariantAvailable === 'function') 
-                            ? !window.isVariantAvailable(selectedColor, selectedSize) 
-                            : (selectedColor === 'Nb' && selectedSize === 'XL')) && (
-                            <div className="mb-6 p-4 rounded-2xl bg-red-950/40 border border-red-500/50 text-red-200 text-xs flex items-start gap-3 shadow-xl animate-shake">
-                                <span className="text-xl shrink-0">⚠️</span>
-                                <div>
-                                    <p className="font-extrabold text-white text-xs sm:text-sm">
-                                        Navy Blue is not available in Size XL
-                                    </p>
-                                    <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
-                                        Per catalog inventory, Navy Blue does not come in Size XL. Please select <strong className="text-cyan-300">Classic White</strong> or <strong className="text-cyan-300">Midnight Black</strong>, or choose a different size (S, M, L, XXL).
-                                    </p>
-                                </div>
-                            </div>
-                        )}
 
                         {/* 3. Mandatory Print Placement Selector */}
                         <div className="mb-6">
@@ -854,7 +903,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                     {quantity > 1 ? (
                                         <span className="text-cyan-300 font-medium">₹{unitPrice} × {quantity} items</span>
                                     ) : (
-                                        <span>₹{unitPrice} ({printSide === 'both' ? 'Double Sided' : 'Single Sided'}{colorOffset > 0 ? ' • Navy Blue' : ''})</span>
+                                        <span>₹{unitPrice} ({printSide === 'both' ? 'Double Sided' : 'Single Sided'}{colorOffset > 0 ? ` • ${((window.PRODUCT_COLORS || []).find(c => c.id === selectedColor) || {}).shortName || 'Color'}` : ''})</span>
                                     )}
                                 </div>
                             </div>
@@ -869,26 +918,15 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             >
                                 Cancel
                             </button>
-                            {((typeof window.isVariantAvailable === 'function') 
-                                ? window.isVariantAvailable(selectedColor, selectedSize) 
-                                : !(selectedColor === 'Nb' && selectedSize === 'XL')) ? (
-                                <button
-                                    onClick={() => {
-                                        setShowBuy(false);
-                                        setShowMockupModal(true);
-                                    }}
-                                    className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
-                                >
-                                    <span>Preview Product &rarr;</span>
-                                </button>
-                            ) : (
-                                <button
-                                    disabled
-                                    className="w-2/3 text-xs sm:text-sm font-bold text-slate-400 py-3.5 sm:py-4 bg-slate-800/80 border border-red-500/30 rounded-2xl transition-all flex items-center justify-center gap-1.5 opacity-60 cursor-not-allowed"
-                                >
-                                    <span>Variant Unavailable</span>
-                                </button>
-                            )}
+                            <button
+                                onClick={() => {
+                                    setShowBuy(false);
+                                    setShowMockupModal(true);
+                                }}
+                                className="w-2/3 text-xs sm:text-sm font-bold text-slate-950 py-3.5 sm:py-4 bg-cyan-400 hover:bg-cyan-300 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                                <span>Preview Product &rarr;</span>
+                            </button>
                         </div>
                     </div>
                 </div>

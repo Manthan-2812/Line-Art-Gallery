@@ -132,10 +132,12 @@ function GalleryApp() {
     const [showUpload,          setShowUpload]          = useState(false);
     const [showOrders,          setShowOrders]          = useState(false);
     const [userLikes,           setUserLikes]           = useState(new Set());
-    const [showBulkPriceModal,  setShowBulkPriceModal]  = useState(false);
-    const [bulkPriceVal,        setBulkPriceVal]        = useState('900');
-    const [bulkOffsetVal,       setBulkOffsetVal]       = useState('50');
-    const [isProcessingBulk,    setIsProcessingBulk]    = useState(false);
+    const [showBulkPriceModal,       setShowBulkPriceModal]       = useState(false);
+    const [bulkPriceVal,             setBulkPriceVal]             = useState('900');
+    const [bulkNavyOffsetVal,        setBulkNavyOffsetVal]        = useState('50');
+    const [bulkRoyalBlueOffsetVal,   setBulkRoyalBlueOffsetVal]   = useState('50');
+    const [bulkRedOffsetVal,         setBulkRedOffsetVal]         = useState('50');
+    const [isProcessingBulk,         setIsProcessingBulk]         = useState(false);
     const [isDeletingAll,       setIsDeletingAll]       = useState(false);
     const [installPrompt,       setInstallPrompt]       = useState(null);
     const [isAppInstalled,      setIsAppInstalled]      = useState(() => {
@@ -278,11 +280,19 @@ function GalleryApp() {
             .catch(err => console.error('[Firebase] rename failed:', err));
     };
 
-    // Update artwork price & blue offset — admin only; persists custom price to Firestore
-    const handleUpdatePrice = (id, newPrice, newOffset) => {
+    // Update artwork price & color offsets — admin only; persists custom price to Firestore
+    const handleUpdatePrice = (id, newPrice, offsets) => {
         const updateObj = { price: Number(newPrice) };
-        if (newOffset !== undefined && !isNaN(Number(newOffset))) {
-            updateObj.blueOffset = Number(newOffset);
+        if (typeof offsets === 'object' && offsets !== null) {
+            if (offsets.navyOffset !== undefined) updateObj.navyOffset = Number(offsets.navyOffset);
+            if (offsets.royalBlueOffset !== undefined) updateObj.royalBlueOffset = Number(offsets.royalBlueOffset);
+            if (offsets.redOffset !== undefined) updateObj.redOffset = Number(offsets.redOffset);
+            if (offsets.navyOffset !== undefined) updateObj.blueOffset = Number(offsets.navyOffset);
+        } else if (offsets !== undefined && !isNaN(Number(offsets))) {
+            updateObj.blueOffset = Number(offsets);
+            updateObj.navyOffset = Number(offsets);
+            updateObj.royalBlueOffset = Number(offsets);
+            updateObj.redOffset = Number(offsets);
         }
         updateImageInFirebase(id, updateObj)
             .catch(err => console.error('[Firebase] update price failed:', err));
@@ -322,13 +332,16 @@ function GalleryApp() {
     const handleBulkUpdatePrice = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
         const parsedPrice = Number(bulkPriceVal);
-        const parsedOffset = Number(bulkOffsetVal);
+        const parsedNavy = Number(bulkNavyOffsetVal);
+        const parsedRoyalBlue = Number(bulkRoyalBlueOffsetVal);
+        const parsedRed = Number(bulkRedOffsetVal);
+
         if (isNaN(parsedPrice) || parsedPrice <= 0) {
             alert('Please enter a valid positive base price (e.g. 900)');
             return;
         }
-        if (isNaN(parsedOffset) || parsedOffset < 0) {
-            alert('Please enter a valid offset for Navy Blue (e.g. 50, 80, or 0)');
+        if (isNaN(parsedNavy) || parsedNavy < 0 || isNaN(parsedRoyalBlue) || parsedRoyalBlue < 0 || isNaN(parsedRed) || parsedRed < 0) {
+            alert('Please enter valid positive offsets (e.g. 50, 0) for colored shirts');
             return;
         }
         if (images.length === 0) {
@@ -336,7 +349,7 @@ function GalleryApp() {
             return;
         }
         const confirmed = confirm(
-            `Update ALL ${images.length} artworks to:\n• Base Price: ₹${parsedPrice}\n• Navy Blue: ₹${parsedPrice + parsedOffset} (+₹${parsedOffset})?`
+            `Update ALL ${images.length} artworks to:\n• Base Price (White, Black, Grey): ₹${parsedPrice}\n• Navy Blue: ₹${parsedPrice + parsedNavy} (+₹${parsedNavy})\n• Royal Blue: ₹${parsedPrice + parsedRoyalBlue} (+₹${parsedRoyalBlue})\n• Crimson Red: ₹${parsedPrice + parsedRed} (+₹${parsedRed})?`
         );
         if (!confirmed) return;
 
@@ -344,7 +357,10 @@ function GalleryApp() {
         try {
             const updatePromises = images.map(img => updateImageInFirebase(img.id, { 
                 price: parsedPrice,
-                blueOffset: parsedOffset
+                navyOffset: parsedNavy,
+                royalBlueOffset: parsedRoyalBlue,
+                redOffset: parsedRed,
+                blueOffset: parsedNavy
             }));
             await Promise.all(updatePromises);
             setShowBulkPriceModal(false);
@@ -601,8 +617,8 @@ function GalleryApp() {
 
                         <form onSubmit={handleBulkUpdatePrice} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-                                    Base Price (White & Black) — INR ₹
+                                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                                    Base Price (White, Black, Grey Melange) — INR ₹
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
@@ -611,41 +627,73 @@ function GalleryApp() {
                                         min="1"
                                         value={bulkPriceVal}
                                         onChange={e => setBulkPriceVal(e.target.value)}
-                                        className="w-full bg-slate-800 border border-white/20 rounded-xl pl-10 pr-4 py-3 text-white font-bold text-lg focus:outline-none focus:border-cyan-400"
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl pl-10 pr-4 py-2.5 text-white font-bold text-base focus:outline-none focus:border-cyan-400"
                                         placeholder="900"
                                         autoFocus
                                     />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-                                    Navy Blue Extra Offset (+INR ₹)
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 font-bold text-lg">+₹</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-blue-300 uppercase tracking-wider mb-1">
+                                        Navy Blue (+₹)
+                                    </label>
                                     <input
                                         type="number"
                                         min="0"
-                                        value={bulkOffsetVal}
-                                        onChange={e => setBulkOffsetVal(e.target.value)}
-                                        className="w-full bg-slate-800 border border-white/20 rounded-xl pl-12 pr-4 py-3 text-white font-bold text-lg focus:outline-none focus:border-cyan-400"
+                                        value={bulkNavyOffsetVal}
+                                        onChange={e => setBulkNavyOffsetVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-blue-400/30 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-blue-400"
                                         placeholder="50"
                                     />
                                 </div>
-                                <p className="text-[11px] text-slate-400 mt-1">
-                                    Navy Blue T-shirts will cost <strong className="text-cyan-300">₹{(Number(bulkPriceVal) || 0) + (Number(bulkOffsetVal) || 0)}</strong>.
-                                </p>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-cyan-300 uppercase tracking-wider mb-1">
+                                        Royal Blue (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={bulkRoyalBlueOffsetVal}
+                                        onChange={e => setBulkRoyalBlueOffsetVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-cyan-400/30 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
+                                        placeholder="50"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-red-300 uppercase tracking-wider mb-1">
+                                        Crimson Red (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={bulkRedOffsetVal}
+                                        onChange={e => setBulkRedOffsetVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-red-400/30 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-red-400"
+                                        placeholder="50"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="bg-slate-800/80 rounded-2xl p-3.5 border border-white/10 space-y-1 text-xs">
+                            <div className="bg-slate-800/80 rounded-2xl p-3.5 border border-white/10 space-y-1.5 text-xs">
                                 <div className="flex justify-between text-slate-300">
-                                    <span>Classic White / Black:</span>
+                                    <span>White / Black / Grey:</span>
                                     <span className="font-bold text-white">₹{Number(bulkPriceVal) || 0}</span>
                                 </div>
-                                <div className="flex justify-between text-cyan-300">
+                                <div className="flex justify-between text-blue-300">
                                     <span>Navy Blue:</span>
-                                    <span className="font-bold">₹{(Number(bulkPriceVal) || 0) + (Number(bulkOffsetVal) || 0)}</span>
+                                    <span className="font-bold">₹{(Number(bulkPriceVal) || 0) + (Number(bulkNavyOffsetVal) || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-cyan-300">
+                                    <span>Royal Blue:</span>
+                                    <span className="font-bold">₹{(Number(bulkPriceVal) || 0) + (Number(bulkRoyalBlueOffsetVal) || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-red-300">
+                                    <span>Crimson Red:</span>
+                                    <span className="font-bold">₹{(Number(bulkPriceVal) || 0) + (Number(bulkRedOffsetVal) || 0)}</span>
                                 </div>
                             </div>
 

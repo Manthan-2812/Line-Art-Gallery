@@ -31,12 +31,39 @@ function ProductMockupModal({ isOpen, onClose, onProceed, artwork, selectedColor
         },
         Nb: {
             name: 'Navy Blue',
-            shirtBg: '#1e3a8a',
-            shirtBorder: '#3b82f6',
-            collarColor: '#1d4ed8',
-            collarBorder: '#60a5fa',
+            shirtBg: '#172554',
+            shirtBorder: '#1e3a8a',
+            collarColor: '#1e40af',
+            collarBorder: '#3b82f6',
             textColor: '#f8fafc',
             tagColor: '#93c5fd'
+        },
+        Gm: {
+            name: 'Grey Melange',
+            shirtBg: '#94a3b8',
+            shirtBorder: '#64748b',
+            collarColor: '#cbd5e1',
+            collarBorder: '#475569',
+            textColor: '#0f172a',
+            tagColor: '#334155'
+        },
+        Rb: {
+            name: 'Royal Blue',
+            shirtBg: '#2563eb',
+            shirtBorder: '#1d4ed8',
+            collarColor: '#3b82f6',
+            collarBorder: '#60a5fa',
+            textColor: '#f8fafc',
+            tagColor: '#bfdbfe'
+        },
+        Rd: {
+            name: 'Crimson Red',
+            shirtBg: '#dc2626',
+            shirtBorder: '#b91c1c',
+            collarColor: '#ef4444',
+            collarBorder: '#f87171',
+            textColor: '#f8fafc',
+            tagColor: '#fecaca'
         }
     };
 

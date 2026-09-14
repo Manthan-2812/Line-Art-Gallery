@@ -21,7 +21,10 @@ const defaultTshirtPrice = Number(process.env.PRICE_TSHIRT || process.env.PRICE_
 async function getPriceForSku(sku, artId, printSide) {
     if (!sku || typeof sku !== 'string') return null;
     let basePrice = defaultTshirtPrice;
-    let blueOffset = 50;
+    let navyOffset = 50;
+    let royalBlueOffset = 50;
+    let redOffset = 50;
+
     if (artId) {
         try {
             const doc = await db.collection('images').doc(String(artId)).get();
@@ -30,22 +33,26 @@ async function getPriceForSku(sku, artId, printSide) {
                 if (data.price && !isNaN(Number(data.price)) && Number(data.price) > 0) {
                     basePrice = Number(data.price);
                 }
-                if (data.blueOffset !== undefined && !isNaN(Number(data.blueOffset)) && Number(data.blueOffset) >= 0) {
-                    blueOffset = Number(data.blueOffset);
-                }
+                const legacy = (data.blueOffset !== undefined && !isNaN(Number(data.blueOffset))) ? Number(data.blueOffset) : 50;
+                navyOffset = (data.navyOffset !== undefined && !isNaN(Number(data.navyOffset))) ? Number(data.navyOffset) : legacy;
+                royalBlueOffset = (data.royalBlueOffset !== undefined && !isNaN(Number(data.royalBlueOffset))) ? Number(data.royalBlueOffset) : legacy;
+                redOffset = (data.redOffset !== undefined && !isNaN(Number(data.redOffset))) ? Number(data.redOffset) : legacy;
             }
         } catch (e) {
             console.warn('[create-order] Could not fetch custom price from Firestore:', e && e.message);
         }
     }
 
-    // Size XL in Navy Blue is not available in Qikink catalog
-    if (sku.toUpperCase() === 'MVNHS-NB-XL') {
-        return null;
+    const skuUpper = sku.toUpperCase();
+    let colorOffset = 0;
+    if (skuUpper.includes('-NB-') || skuUpper.startsWith('MVNHS-NB')) {
+        colorOffset = navyOffset;
+    } else if (skuUpper.includes('-RB-') || skuUpper.startsWith('MVNHS-RB')) {
+        colorOffset = royalBlueOffset;
+    } else if (skuUpper.includes('-RD-') || skuUpper.startsWith('MVNHS-RD')) {
+        colorOffset = redOffset;
     }
 
-    const isBlue = sku.startsWith('MVnHs-Nb') || sku.toLowerCase().includes('-nb-');
-    const colorOffset = isBlue ? blueOffset : 0;
     const printOffset = printSide === 'both' ? 200 : 0;
 
     if (sku.startsWith('MVnHs-') || sku === 'FRAME_11X14') {

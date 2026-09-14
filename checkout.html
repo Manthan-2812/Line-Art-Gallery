@@ -226,16 +226,6 @@
             return;
         }
 
-        if (sku.toUpperCase() === 'MVNHS-NB-XL') {
-            root.innerHTML =
-                '<a href="gallery.html" class="text-cyan-400 hover:underline">&larr; Back to Gallery</a>' +
-                '<div class="mt-6 p-6 rounded-2xl bg-red-950/40 border border-red-500/40 text-red-200">' +
-                '<h3 class="text-lg font-bold text-white mb-1">Variant Unavailable</h3>' +
-                '<p class="text-sm">Navy Blue is not available in Size XL. Please go back to the gallery and select a different size or color.</p>' +
-                '</div>';
-            return;
-        }
-
         const variant = (window.PRODUCT_VARIANTS || []).find(v => v.sku === sku);
         const vLabel  = variant ? variant.label : (color && size ? `${color} — Size ${size}` : 'T-Shirt Print');
         const vSpec   = printSide === 'both' 
