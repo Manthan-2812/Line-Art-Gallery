@@ -6,10 +6,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ADMIN_EMAILS = [
-    'lineartgallery28@gmail.com',
     'manthanparekh9d@gmail.com',
-    'parekhmanthan9d@gmail.com',
-    'manthanparekh.recovery@gmail.com'
+    'lineartgallery28@gmail.com'
 ];
 
 function Navbar({ onAboutClick, onBrandClick }) {
