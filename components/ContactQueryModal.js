@@ -45,10 +45,7 @@ function ContactQueryModal({ isOpen, onClose }) {
                 <div className="space-y-4">
                     {/* 1. Courier Partner: Delhivery Limited */}
                     <div className="bg-slate-800/80 border border-white/10 rounded-2xl p-4 sm:p-5 hover:border-cyan-400/40 transition-all">
-                        <div className="flex items-center gap-2.5 mb-1.5">
-                            <span className="text-lg">🚚</span>
-                            <h3 className="text-base sm:text-lg font-bold text-white">Courier Partner :</h3>
-                        </div>
+                        <h3 className="text-base sm:text-lg font-bold text-white mb-1.5">Courier Partner :</h3>
                         <p className="text-sm font-semibold text-cyan-400 mb-2">
                             <a 
                                 href="https://delhivery.com/" 
@@ -74,10 +71,7 @@ function ContactQueryModal({ isOpen, onClose }) {
 
                     {/* 2. Printing Partner : QikInk */}
                     <div className="bg-slate-800/80 border border-white/10 rounded-2xl p-4 sm:p-5 hover:border-purple-400/40 transition-all">
-                        <div className="flex items-center gap-2.5 mb-1.5">
-                            <span className="text-lg">🖨️</span>
-                            <h3 className="text-base sm:text-lg font-bold text-white">Printing Partner : QikInk</h3>
-                        </div>
+                        <h3 className="text-base sm:text-lg font-bold text-white mb-1.5">Printing Partner : QikInk</h3>
                         <p className="text-sm font-semibold text-purple-300 mb-2">
                             Email: <a href="mailto:care@qikink.com" className="underline hover:text-purple-200 transition-colors">care@qikink.com</a>
                         </p>
@@ -95,15 +89,12 @@ function ContactQueryModal({ isOpen, onClose }) {
 
                     {/* 3. Mail Me (Gallery Owner) */}
                     <div className="bg-slate-800/80 border border-white/10 rounded-2xl p-4 sm:p-5 hover:border-emerald-400/40 transition-all">
-                        <div className="flex items-center gap-2.5 mb-1.5">
-                            <span className="text-lg">✉️</span>
-                            <h3 className="text-base sm:text-lg font-bold text-white">Direct Support (Artist &amp; Gallery) :</h3>
-                        </div>
+                        <h3 className="text-base sm:text-lg font-bold text-white mb-1.5">Mail Me :</h3>
                         <p className="text-sm font-semibold text-emerald-400 mb-2">
                             Email: <a href="mailto:lineartgallery28@gmail.com" className="underline hover:text-emerald-300 transition-colors">lineartgallery28@gmail.com</a>
                         </p>
                         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                            Just email me your <strong>Order Invoice PDF</strong> and your query. We will review and respond promptly.
+                            Just email me your <strong>Order Invoice PDF</strong> and Query.
                         </p>
                     </div>
                 </div>
