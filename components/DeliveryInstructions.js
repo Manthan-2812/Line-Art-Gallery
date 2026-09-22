@@ -138,10 +138,10 @@ function DeliveryInstructions({ isOpen, onClose, onProceed }) {
 
                 {/* Bottom Action if used as checkout gate */}
                 {onProceed && (
-                    <div className="border-t-2 border-black pt-6 flex flex-col sm:flex-row justify-end gap-3">
+                    <div className="sticky bottom-0 bg-white/98 backdrop-blur-sm -mx-6 -mb-6 p-4 sm:p-0 sm:pt-6 sm:static sm:mx-0 sm:mb-0 border-t-2 border-black z-30 flex flex-col sm:flex-row justify-end gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] sm:shadow-none">
                         <button
                             onClick={onClose}
-                            className="di-cancel-btn"
+                            className="di-cancel-btn w-full sm:w-auto"
                         >
                             Cancel
                         </button>
@@ -150,7 +150,7 @@ function DeliveryInstructions({ isOpen, onClose, onProceed }) {
                                 onClose();
                                 onProceed();
                             }}
-                            className="di-proceed-btn"
+                            className="di-proceed-btn w-full sm:w-auto"
                         >
                             I Understand, Continue to Checkout &rarr;
                         </button>
