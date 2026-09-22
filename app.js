@@ -494,61 +494,71 @@ function App() {
                         </p>
 
                         {/* Connect Me On — glassy social cards */}
-                        <div className="space-y-3 pt-2">
-                            <p className="text-white font-bold text-sm tracking-wide">Connect Me On</p>
+                        <div className="space-y-3.5 pt-3">
+                            <p className="text-white font-extrabold text-base tracking-wide flex items-center gap-2">
+                                <span>Connect Me On</span>
+                            </p>
 
                             {/* LinkedIn */}
                             <a href="https://linkedin.com/in/manthanparekh2805" target="_blank" rel="noreferrer"
-                                className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/10 hover:border-blue-400/40 transition-all"
-                                style={{ background: 'rgba(255,255,255,0.05)' }}>
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                                className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 border border-white/10 hover:border-blue-400/50 hover:bg-white/10 transition-all shadow-sm group cursor-pointer"
+                                style={{ background: 'rgba(255,255,255,0.06)' }}>
+                                <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform"
                                     style={{ background: '#0077b5' }}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
                                         <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
                                         <rect x="2" y="9" width="4" height="12"/>
                                         <circle cx="4" cy="4" r="2"/>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-white font-semibold text-sm">LinkedIn</p>
-                                    <p className="text-slate-400 text-xs">linkedin.com/in/manthanparekh2805</p>
+                                    <p className="text-white font-bold text-base sm:text-lg leading-tight group-hover:text-blue-300 transition-colors">LinkedIn</p>
+                                    <p className="text-slate-200 font-semibold text-xs sm:text-sm mt-0.5">linkedin.com/in/manthanparekh2805</p>
                                 </div>
                             </a>
 
                             {/* Instagram */}
                             <a href="https://www.instagram.com/manthanparekh138/" target="_blank" rel="noreferrer"
-                                className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/10 hover:border-pink-400/40 transition-all"
-                                style={{ background: 'rgba(255,255,255,0.05)' }}>
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                                className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 border border-white/10 hover:border-pink-400/50 hover:bg-white/10 transition-all shadow-sm group cursor-pointer"
+                                style={{ background: 'rgba(255,255,255,0.06)' }}>
+                                <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform"
                                     style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                                         <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
                                         <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
                                         <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-white font-semibold text-sm">Instagram</p>
-                                    <p className="text-slate-400 text-xs">@manthanparekh138</p>
+                                    <p className="text-white font-bold text-base sm:text-lg leading-tight group-hover:text-pink-300 transition-colors">Instagram</p>
+                                    <p className="text-slate-200 font-semibold text-xs sm:text-sm mt-0.5">@manthanparekh138</p>
                                 </div>
                             </a>
 
                             {/* Email */}
                             <a 
-                                href="mailto:lineartgallery28@gmail.com"
-                                className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/10 hover:border-cyan-400/40 transition-all cursor-pointer"
-                                style={{ background: 'rgba(255,255,255,0.05)' }}
+                                href="https://mail.google.com/mail/?view=cm&fs=1&to=lineartgallery28@gmail.com&su=Inquiry%20-%20Line%20and%20Layer%20Gallery"
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => {
+                                    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                                        e.preventDefault();
+                                        window.location.href = 'mailto:lineartgallery28@gmail.com';
+                                    }
+                                }}
+                                className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 border border-white/10 hover:border-cyan-400/50 hover:bg-white/10 transition-all cursor-pointer shadow-sm group"
+                                style={{ background: 'rgba(255,255,255,0.06)' }}
                             >
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                                    style={{ background: '#0e7490' }}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform"
+                                    style={{ background: '#0891b2' }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                                         <polyline points="22,6 12,13 2,6"/>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-white font-semibold text-sm">Email</p>
-                                    <p className="text-slate-400 text-xs">lineartgallery28@gmail.com</p>
+                                    <p className="text-white font-bold text-base sm:text-lg leading-tight group-hover:text-cyan-300 transition-colors">Email</p>
+                                    <p className="text-slate-200 font-semibold text-xs sm:text-sm mt-0.5 select-all">lineartgallery28@gmail.com</p>
                                 </div>
                             </a>
                         </div>
