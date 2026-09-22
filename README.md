@@ -149,7 +149,7 @@ PRICE_TSHIRT=900
 *Artist & AI / Data Science Engineer*  
 - **Instagram**: [@manthanparekh138](https://www.instagram.com/manthanparekh138/)
 - **LinkedIn**: [linkedin.com/in/manthanparekh2805](https://linkedin.com/in/manthanparekh2805)
-- **Email**: manthanparekh9d@gmail.com
+- **Email**: lineartgallery28@gmail.com
 
 ---
 *Crafted with precision — Line and Layer Gallery 2026*
