@@ -96,9 +96,9 @@ const GALLERY_LETTER_COLORS = [
 // No typewriter animation here — the gallery is a destination, not an intro.
 function GalleryTitle() {
     return (
-        <h1 className="text-xl sm:text-3xl font-extrabold tracking-wider text-center flex-1 mx-2 sm:mx-4 leading-none flex items-center justify-center gap-2">
-            <img src="icons/icon.svg" alt="Logo" className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg border border-cyan-400/30 shadow-md inline-block" />
-            <span>
+        <h1 className="text-base sm:text-2xl md:text-3xl font-extrabold tracking-wider text-center flex-1 mx-2 sm:mx-4 leading-none flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
+            <img src="icons/icon.svg" alt="Logo" className="w-5 h-5 sm:w-7 sm:h-7 rounded-lg border border-cyan-400/30 shadow-md inline-block shrink-0" />
+            <span className="whitespace-nowrap">
                 {'Art Gallery'.split('').map((char, i) => (
                     <span key={i} style={{
                         color:      char === ' ' ? 'transparent' : GALLERY_LETTER_COLORS[i % GALLERY_LETTER_COLORS.length],
@@ -140,8 +140,10 @@ function GalleryApp() {
     const [showContact,              setShowContact]              = useState(false);
     const [showTAC,                  setShowTAC]                  = useState(false);
     const [showDelivery,             setShowDelivery]             = useState(false);
+    const [mobileMenuOpen,           setMobileMenuOpen]           = useState(false);
     const [isDeletingAll,       setIsDeletingAll]       = useState(false);
     const [installPrompt,       setInstallPrompt]       = useState(null);
+    const mobileMenuRef = React.useRef(null);
     const [isAppInstalled,      setIsAppInstalled]      = useState(() => {
         return (
             (typeof window !== 'undefined' && (
@@ -151,6 +153,23 @@ function GalleryApp() {
             ))
         );
     });
+
+    // Close mobile dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+                setMobileMenuOpen(false);
+            }
+        };
+        if (mobileMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [mobileMenuOpen]);
 
     // Listen for PWA installation prompt & detection
     useEffect(() => {
@@ -402,28 +421,28 @@ function GalleryApp() {
             <TransitionOverlay isVisible={!isLoaded} />
 
             {/* ── Top Nav Bar ──────────────────────────────────────────────────── */}
-            <nav className="sticky top-0 z-40 bg-slate-900/85 backdrop-blur-md border-b border-white/8 px-3 sm:px-6 py-3 flex items-center shadow-lg">
+            <nav className="sticky top-0 z-40 bg-slate-900/85 backdrop-blur-md border-b border-white/8 px-3 sm:px-6 py-3 flex justify-between items-center shadow-lg">
                 {/* Back button — top left */}
                 <button
                     onClick={navigateHome}
-                    className="flex items-center gap-1.5 text-slate-300 hover:text-cyan-400 transition-colors text-sm font-medium shrink-0"
+                    className="flex items-center gap-1.5 text-slate-300 hover:text-cyan-400 transition-colors text-xs sm:text-sm font-medium shrink-0 cursor-pointer"
+                    title="Back to Landing Page"
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                         <polyline points="15 18 9 12 15 6"/>
                     </svg>
-                    <span className="hidden sm:inline">Back to Main Page</span>
+                    <span className="hidden sm:inline">Back</span>
                 </button>
 
-                {/* Centred gradient title — same font style as landing page */}
+                {/* Centred gradient title — horizontal single line */}
                 <GalleryTitle />
 
-                {/* Right side — Install App + My Orders + customer auth (Clerk) + admin controls */}
-                <div className="shrink-0 flex justify-end items-center gap-2">
-                    {/* Install App Quick Action (PWA) - Removed once app is installed */}
+                {/* Desktop controls (>= 768px) */}
+                <div className="hidden md:flex items-center gap-2.5 shrink-0">
                     {!isAppInstalled && (
                         <button
                             onClick={triggerInstall}
-                            className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200 bg-cyan-950/60 border border-cyan-500/40 hover:border-cyan-400 rounded-lg px-2.5 py-1.5 transition-all shadow-sm"
+                            className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200 bg-cyan-950/60 border border-cyan-500/40 hover:border-cyan-400 rounded-lg px-2.5 py-1.5 transition-all shadow-sm cursor-pointer"
                             title="Install Line & Layer App"
                         >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -435,7 +454,6 @@ function GalleryApp() {
                         </button>
                     )}
 
-                    {/* Contact for Query / Support — only shown when signed in */}
                     {isSignedIn && (
                         <button
                             onClick={() => setShowContact(true)}
@@ -445,7 +463,6 @@ function GalleryApp() {
                         </button>
                     )}
 
-                    {/* My Orders button — only shown when signed in */}
                     {isSignedIn && (
                         <button
                             onClick={() => setShowOrders(true)}
@@ -455,13 +472,95 @@ function GalleryApp() {
                         </button>
                     )}
 
-                    {/* Customer authentication (Clerk) */}
                     <ClerkAuthButton compact={true} />
 
                     {isAdmin && (
                         <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 uppercase">
                             Admin Active
                         </span>
+                    )}
+                </div>
+
+                {/* Mobile controls (< 768px): Auth + Hamburger menu */}
+                <div className="flex md:hidden items-center gap-1.5 shrink-0" ref={mobileMenuRef}>
+                    <ClerkAuthButton compact={true} />
+
+                    <button
+                        type="button"
+                        onClick={() => setMobileMenuOpen(v => !v)}
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
+                            mobileMenuOpen 
+                                ? 'bg-cyan-500 text-slate-950 border-cyan-400' 
+                                : 'bg-slate-800/90 text-slate-200 border-white/15 hover:border-cyan-400/50'
+                        }`}
+                        aria-label="Toggle navigation menu"
+                    >
+                        {mobileMenuOpen ? (
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        ) : (
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <line x1="4" y1="7" x2="20" y2="7"/>
+                                <line x1="4" y1="12" x2="20" y2="12"/>
+                                <line x1="4" y1="17" x2="20" y2="17"/>
+                            </svg>
+                        )}
+                    </button>
+
+                    {mobileMenuOpen && (
+                        <div 
+                            className="absolute top-full right-2 mt-2 w-52 bg-slate-900/95 backdrop-blur-xl border border-white/15 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                            style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.85)' }}
+                        >
+                            <div className="space-y-1">
+                                {isSignedIn && (
+                                    <button
+                                        onClick={() => {
+                                            setMobileMenuOpen(false);
+                                            setShowContact(true);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-950/40 rounded-xl transition-colors text-left"
+                                    >
+                                        <span>💬</span>
+                                        <span>Contact for Query</span>
+                                    </button>
+                                )}
+
+                                {isSignedIn && (
+                                    <button
+                                        onClick={() => {
+                                            setMobileMenuOpen(false);
+                                            setShowOrders(true);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:text-cyan-300 hover:bg-white/5 rounded-xl transition-colors text-left"
+                                    >
+                                        <span>📦</span>
+                                        <span>My Orders</span>
+                                    </button>
+                                )}
+
+                                {!isAppInstalled && (
+                                    <button
+                                        onClick={() => {
+                                            setMobileMenuOpen(false);
+                                            triggerInstall();
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-pink-300 hover:bg-pink-950/30 rounded-xl transition-colors text-left border-t border-white/5 mt-1 pt-2"
+                                    >
+                                        <span>📱</span>
+                                        <span>Install App</span>
+                                    </button>
+                                )}
+
+                                {isAdmin && (
+                                    <div className="px-3 py-1.5 text-[10px] font-bold text-cyan-300 bg-cyan-950/40 rounded-lg border border-cyan-500/30 text-center uppercase tracking-wider mt-1">
+                                        👑 Admin Active
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
             </nav>
