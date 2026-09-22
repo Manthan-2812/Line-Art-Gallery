@@ -535,15 +535,7 @@ function App() {
 
                             {/* Email */}
                             <a 
-                                href="https://mail.google.com/mail/?view=cm&fs=1&to=lineartgallery28@gmail.com"
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(e) => {
-                                    // If mobile device, trigger mailto app; otherwise open Gmail compose tab
-                                    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                                        window.location.href = 'mailto:lineartgallery28@gmail.com';
-                                    }
-                                }}
+                                href="mailto:lineartgallery28@gmail.com"
                                 className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/10 hover:border-cyan-400/40 transition-all cursor-pointer"
                                 style={{ background: 'rgba(255,255,255,0.05)' }}
                             >
