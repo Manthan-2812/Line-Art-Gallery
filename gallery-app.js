@@ -746,14 +746,12 @@ function GalleryApp() {
                     >
                         Delivery Instructions
                     </button>
-                    {isSignedIn && (
-                        <button 
-                            onClick={() => setShowContact(true)} 
-                            className="text-cyan-300 hover:text-cyan-200 underline font-semibold transition-colors cursor-pointer flex items-center gap-1"
-                        >
-                            <span>Contact for query</span>
-                        </button>
-                    )}
+                    <button 
+                        onClick={() => setShowContact(true)} 
+                        className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors cursor-pointer"
+                    >
+                        Contact for query
+                    </button>
                 </div>
             </footer>
 
