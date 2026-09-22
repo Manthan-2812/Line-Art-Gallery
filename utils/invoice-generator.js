@@ -83,7 +83,7 @@ window.buildInvoiceHtml = function(inv) {
             </table>
 
             <div style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                Thank you for supporting independent art! For support or inquiries, contact <a href="mailto:manthanparekh9d@gmail.com" style="color: #0284c7; text-decoration: none;">manthanparekh9d@gmail.com</a>
+                Thank you for supporting independent art! For support or inquiries, contact <a href="mailto:lineartgallery28@gmail.com" style="color: #0284c7; text-decoration: none;">lineartgallery28@gmail.com</a>
             </div>
         </div>
     `;

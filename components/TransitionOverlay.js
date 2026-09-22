@@ -1,17 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // components/TransitionOverlay.js
 //
-// TWO utilities:
-//
+// Smooth Page Navigation & Exit Handling:
 //  1. <TransitionOverlay isVisible={bool} />
-//     Used on page ENTER.  Five colored brush-stroke bars cover the screen
-//     on mount (isVisible=true) then wipe upward to reveal the page content.
-//     Each bar has a unique gradient and a rounded bristle-stroke bottom edge.
+//     Brush-stroke wipe on page enter. Cleans up automatically.
 //
 //  2. TriggerTransition(targetUrl)
-//     Used on page LEAVE.  Imperatively injects the same bars into the DOM,
-//     animates them sweeping DOWN across the screen, then navigates.
-//     Called from any component via:  TriggerTransition('gallery.html')
+//     Smooth leave transition with BFCache / back-button restoration.
+//
+//  3. Browser Back/Forward & Exit Confirmation prompt.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TransitionOverlay({ isVisible, onComplete }) {
@@ -35,7 +32,6 @@ function TransitionOverlay({ isVisible, onComplete }) {
                     style={{
                         background: `linear-gradient(180deg, ${bar.from}, ${bar.to})`,
                         transformOrigin: 'top',
-                        // Jagged bottom = brush bristle edge illusion
                         borderBottomLeftRadius:  i % 2 === 0 ? '60px 30px' : '30px 60px',
                         borderBottomRightRadius: i % 2 === 0 ? '30px 60px' : '60px 30px',
                         boxShadow: `0 8px 32px rgba(0,0,0,0.4)`
@@ -43,8 +39,8 @@ function TransitionOverlay({ isVisible, onComplete }) {
                     initial={{ scaleY: 1 }}
                     animate={{ scaleY: isVisible ? 1 : 0 }}
                     transition={{
-                        duration: 0.65,
-                        delay: i * 0.08,
+                        duration: 0.55,
+                        delay: i * 0.06,
                         ease: [0.22, 1, 0.36, 1]
                     }}
                     onAnimationComplete={i === bars.length - 1 ? onComplete : undefined}
@@ -54,14 +50,29 @@ function TransitionOverlay({ isVisible, onComplete }) {
     );
 }
 
-// ── Imperative page-leave transition ─────────────────────────────────────────
-// Creates DOM bars, sweeps them DOWN to cover the current page, then navigates.
-// Total time: ~950ms  (sweep-in 600ms + settle 350ms)
+// Clean up any stray overlays on back/forward cache restores
+if (typeof window !== 'undefined') {
+    window.addEventListener('pageshow', (event) => {
+        const stray = document.getElementById('lnl-leave-transition-overlay');
+        if (stray && stray.parentNode) stray.parentNode.removeChild(stray);
+    });
+    window.addEventListener('popstate', () => {
+        const stray = document.getElementById('lnl-leave-transition-overlay');
+        if (stray && stray.parentNode) stray.parentNode.removeChild(stray);
+    });
+}
 
+// ── Imperative page-leave transition ─────────────────────────────────────────
 function TriggerTransition(targetUrl) {
+    if (!targetUrl) return;
+
+    // Remove any existing overlay first
+    const prev = document.getElementById('lnl-leave-transition-overlay');
+    if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+
     const overlay = document.createElement('div');
-    overlay.style.cssText =
-        'position:fixed;inset:0;z-index:9999;display:flex;pointer-events:none;';
+    overlay.id = 'lnl-leave-transition-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;pointer-events:none;';
     document.body.appendChild(overlay);
 
     const gradients = [
@@ -82,21 +93,19 @@ function TriggerTransition(targetUrl) {
             border-bottom-left-radius:  ${i % 2 === 0 ? '60px 30px' : '30px 60px'};
             border-bottom-right-radius: ${i % 2 === 0 ? '30px 60px' : '60px 30px'};
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            transition: transform 0.6s cubic-bezier(0.22,1,0.36,1) ${i * 0.08}s;
+            transition: transform 0.45s cubic-bezier(0.22,1,0.36,1) ${i * 0.05}s;
         `;
         overlay.appendChild(bar);
     });
 
-    // Double rAF ensures the initial scaleY:0 paint happens before transition
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             Array.from(overlay.children).forEach(bar => {
                 bar.style.transform = 'scaleY(1)';
             });
-            // Navigate after bars fully cover the screen
             setTimeout(() => {
                 window.location.href = targetUrl;
-            }, 950);
+            }, 550);
         });
     });
 }

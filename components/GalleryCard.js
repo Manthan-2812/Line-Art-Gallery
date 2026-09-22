@@ -31,6 +31,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     const currentRedOffset = (image.redOffset !== undefined && image.redOffset !== null && !isNaN(Number(image.redOffset))) ? Number(image.redOffset) : legacyBlue;
 
     const [liked, setLiked]                                 = useState(isArtLiked);
+    const [localLikesCount, setLocalLikesCount]             = useState(image.likes || 0);
     const [imgLoaded, setImgLoaded]                         = useState(false);
     const [imgError, setImgError]                           = useState(false);
     const [editingName, setEditingName]                     = useState(false);
@@ -75,7 +76,8 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     // Re-sync if a parent re-renders this card with a different image.id or likes change
     useEffect(() => {
         setLiked(isArtLiked());
-    }, [image.id, window.__userLikedIds]);
+        setLocalLikesCount(image.likes || 0);
+    }, [image.id, image.likes, window.__userLikedIds]);
 
     useEffect(() => {
         setPriceDraft(currentPrice);
@@ -215,30 +217,9 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         window.location.href = `checkout.html?${params.toString()}`;
     };
 
-    // Toggle like: account-based if signed in with Clerk, or fallback to local
+    // Toggle like: instantaneous optimistic rendering with background sync
     const handleLike = async () => {
-        if (window.Clerk && window.Clerk.user) {
-            try {
-                const token = await window.Clerk.session.getToken();
-                const res = await fetch('/api/toggle-like', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ artId: image.id })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    const nowLiked = data.liked;
-                    setLiked(nowLiked);
-                    if (!window.__userLikedIds) window.__userLikedIds = new Set();
-                    nowLiked ? window.__userLikedIds.add(image.id) : window.__userLikedIds.delete(image.id);
-                }
-            } catch (err) {
-                console.error('Failed to toggle like:', err);
-            }
-        } else {
+        if (!window.Clerk || !window.Clerk.user) {
             if (window.Clerk) {
                 window.Clerk.openSignIn({ appearance: window.CLERK_APPEARANCE });
             } else {
@@ -247,8 +228,45 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 delta === -1 ? set.delete(image.id) : set.add(image.id);
                 saveLikedSet(set);
                 setLiked(delta === 1);
-                onUpdate(image.id, { ...image, likes: Math.max(0, image.likes + delta) });
+                setLocalLikesCount(prev => Math.max(0, prev + delta));
+                if (onUpdate) onUpdate(image.id, { ...image, likes: Math.max(0, (image.likes || 0) + delta) });
             }
+            return;
+        }
+
+        // Optimistically toggle UI instantly
+        const prevLiked = liked;
+        const nextLiked = !prevLiked;
+        const delta = nextLiked ? 1 : -1;
+
+        setLiked(nextLiked);
+        setLocalLikesCount(prev => Math.max(0, prev + delta));
+        if (!window.__userLikedIds) window.__userLikedIds = new Set();
+        nextLiked ? window.__userLikedIds.add(image.id) : window.__userLikedIds.delete(image.id);
+
+        try {
+            const token = await window.Clerk.session.getToken();
+            const res = await fetch('/api/toggle-like', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ artId: image.id })
+            });
+            const data = await res.json();
+            if (data.ok && data.liked !== nextLiked) {
+                setLiked(data.liked);
+                if (data.likesCount !== undefined) {
+                    setLocalLikesCount(data.likesCount);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to sync like with server:', err);
+            // Revert on error
+            setLiked(prevLiked);
+            setLocalLikesCount(prev => Math.max(0, prev - delta));
+            prevLiked ? window.__userLikedIds.add(image.id) : window.__userLikedIds.delete(image.id);
         }
     };
 
@@ -423,7 +441,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                     title={liked ? 'Unlike' : 'Like'}
                 >
                     <HeartIcon filled={liked} />
-                    <span className="text-xs font-semibold tabular-nums">{image.likes}</span>
+                    <span className="text-xs font-semibold tabular-nums">{localLikesCount}</span>
                 </button>
 
                 <div className="flex items-center gap-1">

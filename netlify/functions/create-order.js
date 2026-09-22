@@ -14,6 +14,7 @@
 
 const Razorpay = require('razorpay');
 const { db } = require('./_firebaseAdmin');
+const { checkRateLimit, secureJson } = require('./_security');
 
 // Server-side source of truth for prices (INR). Client prices are NOT trusted.
 const defaultTshirtPrice = Number(process.env.PRICE_TSHIRT || process.env.PRICE_FRAME_11X14 || 900);
@@ -65,12 +66,16 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
-        return json(405, { error: 'Method not allowed' });
+        return secureJson(405, { error: 'Method not allowed' });
+    }
+
+    if (!checkRateLimit(event, 40, 60000)) {
+        return secureJson(429, { error: 'Too many order attempts. Please slow down.' });
     }
 
     let body;
     try { body = JSON.parse(event.body || '{}'); }
-    catch (e) { return json(400, { error: 'Invalid JSON body' }); }
+    catch (e) { return secureJson(400, { error: 'Invalid JSON body' }); }
 
     const { sku, email, artId, artName, printUrl, clerkUserId, printSide } = body;
     const rawQty = parseInt(body.quantity, 10);
@@ -79,13 +84,13 @@ exports.handler = async (event) => {
 
     const unitPriceInr = await getPriceForSku(sku, artId, chosenPrintSide);
     if (!sku || !unitPriceInr) {
-        return json(400, { error: 'Unknown or unavailable product' });
+        return secureJson(400, { error: 'Unknown or unavailable product' });
     }
     if (!email || !EMAIL_RE.test(email)) {
-        return json(400, { error: 'A valid email is required' });
+        return secureJson(400, { error: 'A valid email is required' });
     }
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-        return json(500, { error: 'Payments are not configured on the server' });
+        return secureJson(500, { error: 'Payments are not configured on the server' });
     }
 
     const totalAmountInr = unitPriceInr * quantity;
@@ -126,7 +131,7 @@ exports.handler = async (event) => {
             }
         });
 
-        return json(200, {
+        return secureJson(200, {
             orderId:   order.id,
             amount:    order.amount,                 // paise, echoed from Razorpay
             currency:  order.currency,
@@ -137,14 +142,6 @@ exports.handler = async (event) => {
         });
     } catch (err) {
         console.error('[create-order] Razorpay error:', err && err.message);
-        return json(502, { error: 'Could not create payment order' });
+        return secureJson(502, { error: 'Could not create payment order' });
     }
 };
-
-function json(statusCode, obj) {
-    return {
-        statusCode,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(obj)
-    };
-}

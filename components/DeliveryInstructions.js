@@ -26,6 +26,16 @@ function DeliveryInstructions({ isOpen, onClose, onProceed }) {
                     </p>
                 </div>
 
+                {/* Highlighted Notice as requested */}
+                <div className="bg-amber-50 border-2 border-amber-400 p-4 rounded-xl text-black">
+                    <p className="text-sm font-bold text-amber-900 flex items-center gap-2 mb-1">
+                        <span>⚠️</span> Important Delivery Notice
+                    </p>
+                    <p className="text-sm text-neutral-800 leading-relaxed">
+                        The delivery days mentioned here are <strong>approximate</strong> as per estimates provided by our printing partner. It may take a little more time beyond this timeline depending on regional transit conditions. For any queries, please visit the <strong>"Contact for query"</strong> section located in the navigation bar or footer of our landing page.
+                    </p>
+                </div>
+
                 {/* Section 1 */}
                 <section className="space-y-3">
                     <h2 className="text-xl font-bold text-black">1. Print-on-Demand Fulfillment Process</h2>
@@ -51,7 +61,7 @@ function DeliveryInstructions({ isOpen, onClose, onProceed }) {
                 <section className="space-y-3">
                     <h2 className="text-xl font-bold text-black">3. Domestic Shipping & Transit Times</h2>
                     <p className="text-base text-black leading-relaxed">
-                        We deliver pan-India to all serviceable pin codes via premier logistics partners (including Blue Dart, Delhivery, DTDC, Ekart, and Xpressbees). Estimated transit times post-dispatch:
+                        We deliver pan-India to all serviceable pin codes via premier logistics partners (including Delhivery, Blue Dart, DTDC, Ekart, and Xpressbees). Estimated transit times post-dispatch:
                     </p>
                     <ul className="list-disc pl-6 space-y-2 text-base text-black leading-relaxed">
                         <li><strong>Metro Cities (Mumbai, Delhi, Bengaluru, etc.):</strong> 2 to 4 business days.</li>
@@ -82,10 +92,13 @@ function DeliveryInstructions({ isOpen, onClose, onProceed }) {
 
                 {/* Section 6 */}
                 <section className="space-y-3">
-                    <h2 className="text-xl font-bold text-black">6. Live Order Tracking</h2>
+                    <h2 className="text-xl font-bold text-black">6. Live Order Tracking & Delhivery Portal</h2>
                     <p className="text-base text-black leading-relaxed">
-                        As soon as your shipment is manifested, an Air Waybill (AWB) number and tracking URL are generated. You can view live tracking milestones (Manifested, In Transit, Out for Delivery) directly inside your <strong>My Orders</strong> drawer on our website.
+                        As soon as your shipment is manifested, an Air Waybill (AWB) number and tracking URL are generated. You can view live tracking milestones directly inside your <strong>My Orders</strong> drawer on our website.
                     </p>
+                    <div className="bg-neutral-100 p-3.5 rounded-xl text-sm text-black border border-neutral-300">
+                        <strong>Direct Courier Tracking:</strong> For tracking your delivery status in detail, you can visit the official courier website <a href="https://delhivery.com/" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700 hover:text-blue-900">delhivery.com</a> and enter your tracking ID or phone number into the AWB input field.
+                    </div>
                 </section>
 
                 {/* Section 7 */}
@@ -118,7 +131,7 @@ function DeliveryInstructions({ isOpen, onClose, onProceed }) {
                     <div className="bg-neutral-100 p-4 rounded-xl text-sm text-black space-y-1">
                         <p><strong>Gallery:</strong> Line and Layer Gallery</p>
                         <p><strong>Founder & Curator:</strong> Manthan Parekh</p>
-                        <p><strong>Email:</strong> manthanparekh9d@gmail.com</p>
+                        <p><strong>Email:</strong> <a href="mailto:lineartgallery28@gmail.com" className="underline font-bold">lineartgallery28@gmail.com</a></p>
                         <p><strong>Location:</strong> Mumbai, Maharashtra, India</p>
                     </div>
                 </section>

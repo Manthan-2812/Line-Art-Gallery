@@ -4,29 +4,34 @@
 // Endpoint to submit a post-purchase 1-5 star rating and update global metrics.
 // ─────────────────────────────────────────────────────────────────────────────
 const { admin, db } = require('./_firebaseAdmin');
+const { checkRateLimit, secureJson } = require('./_security');
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
-        return json(405, { error: 'Method not allowed' });
+        return secureJson(405, { error: 'Method not allowed' });
+    }
+
+    if (!checkRateLimit(event, 30, 60000)) {
+        return secureJson(429, { error: 'Too many requests. Please slow down.' });
     }
 
     let body;
     try { body = JSON.parse(event.body || '{}'); }
-    catch (e) { return json(400, { error: 'Invalid JSON body' }); }
+    catch (e) { return secureJson(400, { error: 'Invalid JSON body' }); }
 
     const { stars, feedback, orderId, artName } = body;
     const ratingNum = Number(stars);
 
     if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
-        return json(400, { error: 'Rating must be between 1 and 5 stars' });
+        return secureJson(400, { error: 'Rating must be between 1 and 5 stars' });
     }
 
     try {
         const ratingDoc = {
             stars: ratingNum,
             feedback: String(feedback || '').slice(0, 500),
-            orderId: String(orderId || ''),
-            artName: String(artName || ''),
+            orderId: String(orderId || '').slice(0, 100),
+            artName: String(artName || '').slice(0, 150),
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         };
 
@@ -38,17 +43,9 @@ exports.handler = async (event) => {
             totalRatingsCount: admin.firestore.FieldValue.increment(1)
         }, { merge: true });
 
-        return json(200, { ok: true });
+        return secureJson(200, { ok: true });
     } catch (e) {
         console.error('[submit-rating] Error saving rating:', e.message);
-        return json(500, { error: 'Failed to save rating' });
+        return secureJson(500, { error: 'Failed to save rating' });
     }
 };
-
-function json(statusCode, obj) {
-    return {
-        statusCode,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(obj)
-    };
-}

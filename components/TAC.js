@@ -96,7 +96,7 @@ function TAC({ isOpen, onClose }) {
             <div className="bg-neutral-100 p-5 rounded-lg border border-neutral-300 text-sm space-y-1 text-black font-medium">
                 <p><strong>Gallery:</strong> Line and Layer Gallery</p>
                 <p><strong>Artist &​ Founder:</strong> Manthan Parekh</p>
-                <p><strong>Email:</strong> manthanparekh9d@gmail.com</p>
+                <p><strong>Email:</strong> lineartgallery28@gmail.com</p>
                 <p><strong>Location:</strong> Mumbai, Maharashtra, India</p>
             </div>
         </section>

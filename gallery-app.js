@@ -138,6 +138,9 @@ function GalleryApp() {
     const [bulkRoyalBlueOffsetVal,   setBulkRoyalBlueOffsetVal]   = useState('50');
     const [bulkRedOffsetVal,         setBulkRedOffsetVal]         = useState('50');
     const [isProcessingBulk,         setIsProcessingBulk]         = useState(false);
+    const [showContact,              setShowContact]              = useState(false);
+    const [showTAC,                  setShowTAC]                  = useState(false);
+    const [showDelivery,             setShowDelivery]             = useState(false);
     const [isDeletingAll,       setIsDeletingAll]       = useState(false);
     const [installPrompt,       setInstallPrompt]       = useState(null);
     const [isAppInstalled,      setIsAppInstalled]      = useState(() => {
@@ -433,11 +436,21 @@ function GalleryApp() {
                         </button>
                     )}
 
+                    {/* Contact for Query / Support — only shown when signed in */}
+                    {isSignedIn && (
+                        <button
+                            onClick={() => setShowContact(true)}
+                            className="text-xs sm:text-sm font-semibold text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 hover:border-cyan-400 bg-cyan-950/40 rounded-lg px-2.5 py-1.5 transition-all cursor-pointer flex items-center gap-1"
+                        >
+                            <span>Support</span>
+                        </button>
+                    )}
+
                     {/* My Orders button — only shown when signed in */}
                     {isSignedIn && (
                         <button
                             onClick={() => setShowOrders(true)}
-                            className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-cyan-400 border border-white/15 hover:border-cyan-400/40 rounded-lg px-2.5 py-1.5 transition-all"
+                            className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-cyan-400 border border-white/15 hover:border-cyan-400/40 rounded-lg px-2.5 py-1.5 transition-all cursor-pointer"
                         >
                             <span>My Orders</span>
                         </button>
@@ -716,6 +729,44 @@ function GalleryApp() {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {/* Bottom Gallery Footer */}
+            <footer className="relative z-10 border-t border-white/10 py-8 px-6 text-center text-xs text-slate-400 mt-16">
+                <div className="flex flex-wrap justify-center items-center gap-6">
+                    <span>© 2026 Line and Layer Gallery</span>
+                    <button 
+                        onClick={() => setShowTAC(true)} 
+                        className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors cursor-pointer"
+                    >
+                        Terms & Conditions
+                    </button>
+                    <button 
+                        onClick={() => setShowDelivery(true)} 
+                        className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors cursor-pointer"
+                    >
+                        Delivery Instructions
+                    </button>
+                    {isSignedIn && (
+                        <button 
+                            onClick={() => setShowContact(true)} 
+                            className="text-cyan-300 hover:text-cyan-200 underline font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                            <span>Contact for query</span>
+                        </button>
+                    )}
+                </div>
+            </footer>
+
+            {/* Terms & Conditions Modal */}
+            {typeof TAC !== 'undefined' && <TAC isOpen={showTAC} onClose={() => setShowTAC(false)} />}
+
+            {/* Delivery Instructions Modal */}
+            {typeof DeliveryInstructions !== 'undefined' && <DeliveryInstructions isOpen={showDelivery} onClose={() => setShowDelivery(false)} />}
+
+            {/* Contact for Query Modal */}
+            {typeof ContactQueryModal !== 'undefined' && (
+                <ContactQueryModal isOpen={showContact} onClose={() => setShowContact(false)} />
             )}
 
             {/* Order History Drawer */}

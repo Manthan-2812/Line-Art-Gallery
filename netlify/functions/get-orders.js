@@ -5,15 +5,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { verifyToken } = require('@clerk/backend');
 const { db } = require('./_firebaseAdmin');
+const { checkRateLimit, secureJson } = require('./_security');
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'GET') {
-        return json(405, { error: 'Method not allowed' });
+        return secureJson(405, { error: 'Method not allowed' });
+    }
+
+    if (!checkRateLimit(event, 60, 60000)) {
+        return secureJson(429, { error: 'Too many requests. Please slow down.' });
     }
 
     const token = (event.headers.authorization || '').replace('Bearer ', '').trim();
     if (!token) {
-        return json(401, { error: 'Unauthorized: No token provided' });
+        return secureJson(401, { error: 'Unauthorized: No token provided' });
     }
 
     let userId;
@@ -21,11 +26,11 @@ exports.handler = async (event) => {
         const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
         userId = payload.sub;
     } catch (e) {
-        return json(401, { error: 'Unauthorized: Invalid token' });
+        return secureJson(401, { error: 'Unauthorized: Invalid token' });
     }
 
     try {
-        // Query orders by clerkUserId
+        // Query orders strictly by authenticated clerkUserId (prevents IDOR/BOLA)
         const snap = await db.collection('orders')
             .where('clerkUserId', '==', userId)
             .get();
@@ -50,17 +55,9 @@ exports.handler = async (event) => {
         // Sort newest first
         orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        return json(200, { orders });
+        return secureJson(200, { orders });
     } catch (e) {
         console.error('[get-orders] Error fetching orders:', e.message);
-        return json(500, { error: 'Failed to fetch orders' });
+        return secureJson(500, { error: 'Failed to fetch orders' });
     }
 };
-
-function json(statusCode, obj) {
-    return {
-        statusCode,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(obj)
-    };
-}

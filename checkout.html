@@ -27,7 +27,10 @@
         html, body {
             background-color: #080e1d;
             color: white;
+            overflow-x: hidden;
+            width: 100%;
             margin: 0;
+            padding: 0;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
@@ -582,43 +585,34 @@
                         Note: If you haven't received your receipt via email, please download and save your PDF copy using the button above.
                     </p>
 
-                    <!-- Post-Purchase Rating Card -->
+                    <!-- Post-Purchase 5-Star Rating Card -->
                     <div id="rating-card" class="bg-slate-800/40 border border-white/10 rounded-xl p-5 text-center no-print">
-                        <h3 class="text-sm font-bold text-white mb-1">How was your experience?</h3>
-                        <p class="text-xs text-slate-400 mb-3">Rate Line and Layer Gallery to help other art collectors</p>
+                        <h3 class="text-sm font-bold text-white mb-1">Rate Your Experience</h3>
+                        <p class="text-xs text-slate-400 mb-3">Tap a star to rate Line and Layer Gallery</p>
                         
-                        <div class="flex justify-center gap-2 mb-3" id="star-container">
+                        <div class="flex justify-center gap-2 mb-2" id="star-container">
                             ${[1, 2, 3, 4, 5].map(star => `
-                                <button type="button" data-star="${star}" class="star-btn text-2xl text-slate-600 hover:text-amber-400 transition-transform hover:scale-125 focus:outline-none">
+                                <button type="button" data-star="${star}" class="star-btn text-2xl text-slate-600 hover:text-amber-400 transition-transform hover:scale-125 focus:outline-none cursor-pointer">
                                     ★
                                 </button>
                             `).join('')}
                         </div>
                         
-                        <div id="rating-feedback-box" class="hidden max-w-sm mx-auto">
-                            <textarea id="rating-comment" rows="2" placeholder="Optional: Leave a brief review or feedback..."
-                                class="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors mb-2"></textarea>
-                            <button id="submit-rating-btn" class="w-full py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold rounded-lg text-xs transition-all shadow-md">
-                                Submit Rating
-                            </button>
-                        </div>
                         <div id="rating-thanks" class="hidden text-xs font-bold text-emerald-400 mt-2">
-                            ✓ Thank you for your feedback! Your rating is recorded.
+                            ✓ Thank you for your rating!
                         </div>
                     </div>
                 </div>
             `;
 
-            // Bind Rating interactions
-            let selectedStars = 0;
+            // Bind Rating interactions (instant 1-tap star rating)
+            let rated = false;
             const starBtns = document.querySelectorAll('.star-btn');
-            const feedbackBox = document.getElementById('rating-feedback-box');
             const thanksBox = document.getElementById('rating-thanks');
-            const submitRatingBtn = document.getElementById('submit-rating-btn');
 
             const highlightStars = (rating) => {
                 starBtns.forEach(btn => {
-                    const val = parseInt(btn.getAttribute('data-star'));
+                    const val = parseInt(btn.getAttribute('data-star'), 10);
                     if (val <= rating) {
                         btn.className = 'star-btn text-2xl text-amber-400 transition-transform focus:outline-none';
                     } else {
@@ -629,32 +623,29 @@
 
             starBtns.forEach(btn => {
                 btn.addEventListener('mouseenter', () => {
-                    const val = parseInt(btn.getAttribute('data-star'));
+                    if (rated) return;
+                    const val = parseInt(btn.getAttribute('data-star'), 10);
                     highlightStars(val);
                 });
                 btn.addEventListener('mouseleave', () => {
-                    highlightStars(selectedStars);
+                    if (rated) return;
+                    highlightStars(0);
                 });
-                btn.addEventListener('click', () => {
-                    selectedStars = parseInt(btn.getAttribute('data-star'));
-                    highlightStars(selectedStars);
-                    if (feedbackBox) feedbackBox.classList.remove('hidden');
-                });
-            });
-
-            if (submitRatingBtn) {
-                submitRatingBtn.addEventListener('click', async () => {
-                    if (!selectedStars) return;
-                    submitRatingBtn.disabled = true;
-                    submitRatingBtn.textContent = 'Submitting…';
-                    const feedback = (document.getElementById('rating-comment') || {}).value || '';
+                btn.addEventListener('click', async () => {
+                    if (rated) return;
+                    rated = true;
+                    const stars = parseInt(btn.getAttribute('data-star'), 10);
+                    highlightStars(stars);
+                    if (thanksBox) {
+                        thanksBox.textContent = `✓ Thank you! You rated ${stars} star${stars > 1 ? 's' : ''}.`;
+                        thanksBox.classList.remove('hidden');
+                    }
                     try {
                         await fetch('/api/submit-rating', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                stars: selectedStars,
-                                feedback: feedback,
+                                stars: stars,
                                 orderId: info.orderId,
                                 artName: info.artName
                             })
@@ -662,10 +653,8 @@
                     } catch (e) {
                         console.error('Failed to submit rating:', e);
                     }
-                    if (feedbackBox) feedbackBox.classList.add('hidden');
-                    if (thanksBox) thanksBox.classList.remove('hidden');
                 });
-            }
+            });
         };
 
         const renderLoginPrompt = () => {

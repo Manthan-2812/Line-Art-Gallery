@@ -217,7 +217,7 @@ function OrderHistoryDrawer({ isOpen, onClose }) {
                 </table>
 
                 <div class="footer">
-                    Thank you for supporting independent art! For support or inquiries, contact manthanparekh9d@gmail.com
+                    Thank you for supporting independent art! For support or inquiries, contact lineartgallery28@gmail.com
                 </div>
 
                 <script>

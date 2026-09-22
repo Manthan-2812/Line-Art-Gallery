@@ -1,5 +1,5 @@
 // Service Worker for Line & Layer Gallery PWA
-const CACHE_NAME = 'line-and-layer-v1';
+const CACHE_NAME = 'line-and-layer-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -11,10 +11,13 @@ const ASSETS_TO_CACHE = [
   '/gallery-app.js',
   '/utils/products.js',
   '/utils/print-master.js',
+  '/utils/invoice-generator.js',
   '/utils/clerk-config.js',
+  '/components/Navbar.js',
   '/components/GalleryCard.js',
   '/components/AddressModal.js',
   '/components/DeliveryInstructions.js',
+  '/components/ContactQueryModal.js',
   '/components/TAC.js'
 ];
 

@@ -190,6 +190,8 @@ function App() {
     
     const { useState, useEffect, useRef } = React;
     const { motion, AnimatePresence } = window.Motion;
+    const userState = window.useClerkUser ? window.useClerkUser() : { isSignedIn: false, user: null };
+    const isSignedIn = userState.isSignedIn;
 
     const [isLoaded,      setIsLoaded]      = useState(false);
     const [titleHovered,  setTitleHovered]  = useState(false);
@@ -199,6 +201,7 @@ function App() {
     const [sparks,   setSparks]   = useState([]);
     const [showTAC, setShowTAC] = useState(false);
     const [showDelivery, setShowDelivery] = useState(false);
+    const [showContact, setShowContact] = useState(false);
 
     useEffect(() => {
         const t = setTimeout(() => setIsLoaded(true), 120);
@@ -532,13 +535,13 @@ function App() {
 
                             {/* Email */}
                             <a 
-                                href="https://mail.google.com/mail/?view=cm&fs=1&to=manthanparekh9d@gmail.com"
+                                href="https://mail.google.com/mail/?view=cm&fs=1&to=lineartgallery28@gmail.com"
                                 target="_blank"
                                 rel="noreferrer"
                                 onClick={(e) => {
                                     // If mobile device, trigger mailto app; otherwise open Gmail compose tab
                                     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                                        window.location.href = 'mailto:manthanparekh9d@gmail.com';
+                                        window.location.href = 'mailto:lineartgallery28@gmail.com';
                                     }
                                 }}
                                 className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/10 hover:border-cyan-400/40 transition-all cursor-pointer"
@@ -553,7 +556,7 @@ function App() {
                                 </div>
                                 <div>
                                     <p className="text-white font-semibold text-sm">Email</p>
-                                    <p className="text-slate-400 text-xs">manthanparekh9d@gmail.com</p>
+                                    <p className="text-slate-400 text-xs">lineartgallery28@gmail.com</p>
                                 </div>
                             </a>
                         </div>
@@ -588,16 +591,24 @@ function App() {
         <span>© 2026 Line and Layer Gallery</span>
         <button 
             onClick={() => setShowTAC(true)} 
-            className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors"
+            className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors cursor-pointer"
         >
             Terms & Conditions
         </button>
         <button 
             onClick={() => setShowDelivery(true)} 
-            className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors"
+            className="text-slate-300 hover:text-cyan-400 underline font-medium transition-colors cursor-pointer"
         >
             Delivery Instructions
         </button>
+        {isSignedIn && (
+            <button 
+                onClick={() => setShowContact(true)} 
+                className="text-cyan-300 hover:text-cyan-200 underline font-semibold transition-colors cursor-pointer flex items-center gap-1"
+            >
+                <span>💬 Contact for query</span>
+            </button>
+        )}
     </div>
 </footer>
 
@@ -606,6 +617,11 @@ function App() {
 
 {/* Delivery Instructions Modal */}
 <DeliveryInstructions isOpen={showDelivery} onClose={() => setShowDelivery(false)} /> 
+
+{/* Contact for Query Modal */}
+{typeof ContactQueryModal !== 'undefined' && (
+    <ContactQueryModal isOpen={showContact} onClose={() => setShowContact(false)} />
+)} 
 
 {/* Bottom PWA Install Prompt Banner */}
 {typeof PWAInstallBanner !== 'undefined' && <PWAInstallBanner />}

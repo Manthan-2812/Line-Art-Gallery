@@ -6,15 +6,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { verifyToken } = require('@clerk/backend');
 const { admin, db } = require('./_firebaseAdmin');
+const { checkRateLimit, secureJson } = require('./_security');
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
-        return json(405, { error: 'Method not allowed' });
+        return secureJson(405, { error: 'Method not allowed' });
+    }
+
+    if (!checkRateLimit(event, 60, 60000)) {
+        return secureJson(429, { error: 'Too many requests. Please slow down.' });
     }
 
     const token = (event.headers.authorization || '').replace('Bearer ', '').trim();
     if (!token) {
-        return json(401, { error: 'Unauthorized: Please sign in to like artworks' });
+        return secureJson(401, { error: 'Unauthorized: Please sign in to like artworks' });
     }
 
     let userId;
@@ -23,16 +28,16 @@ exports.handler = async (event) => {
         userId = payload.sub;
     } catch (e) {
         console.error('[toggle-like] Token verification failed:', e.message);
-        return json(401, { error: 'Unauthorized: Invalid session' });
+        return secureJson(401, { error: 'Unauthorized: Invalid session' });
     }
 
     let body;
     try { body = JSON.parse(event.body || '{}'); }
-    catch (e) { return json(400, { error: 'Invalid JSON body' }); }
+    catch (e) { return secureJson(400, { error: 'Invalid JSON body' }); }
 
     const { artId } = body;
-    if (!artId) {
-        return json(400, { error: 'Missing artId' });
+    if (!artId || typeof artId !== 'string') {
+        return secureJson(400, { error: 'Missing or invalid artId' });
     }
 
     try {
@@ -64,17 +69,9 @@ exports.handler = async (event) => {
             return { liked: !isLiked };
         });
 
-        return json(200, { ok: true, liked: result.liked });
+        return secureJson(200, { ok: true, liked: result.liked });
     } catch (e) {
         console.error('[toggle-like] Transaction failed:', e.message);
-        return json(500, { error: 'Failed to update like status' });
+        return secureJson(500, { error: 'Failed to update like status' });
     }
 };
-
-function json(statusCode, obj) {
-    return {
-        statusCode,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(obj)
-    };
-}
