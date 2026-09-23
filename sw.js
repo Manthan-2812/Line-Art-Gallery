@@ -18,7 +18,6 @@ const ASSETS_TO_CACHE = [
   '/components/AddressModal.js',
   '/components/DeliveryInstructions.js',
   '/components/ContactQueryModal.js',
-  '/components/ExitConfirmModal.js',
   '/components/TAC.js'
 ];
 
