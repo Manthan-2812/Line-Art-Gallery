@@ -481,65 +481,63 @@ function GalleryApp() {
                     )}
                 </div>
 
-                {/* Mobile controls (< 768px): Auth + Hamburger menu */}
+                {/* Mobile controls (< 768px): Auth + Hamburger menu (shown only after sign in) */}
                 <div className="flex md:hidden items-center gap-1.5 shrink-0" ref={mobileMenuRef}>
                     <ClerkAuthButton compact={true} />
 
-                    <button
-                        type="button"
-                        onClick={() => setMobileMenuOpen(v => !v)}
-                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
-                            mobileMenuOpen 
-                                ? 'bg-cyan-500 text-slate-950 border-cyan-400' 
-                                : 'bg-slate-800/90 text-slate-200 border-white/15 hover:border-cyan-400/50'
-                        }`}
-                        aria-label="Toggle navigation menu"
-                    >
-                        {mobileMenuOpen ? (
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        ) : (
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                <line x1="4" y1="7" x2="20" y2="7"/>
-                                <line x1="4" y1="12" x2="20" y2="12"/>
-                                <line x1="4" y1="17" x2="20" y2="17"/>
-                            </svg>
-                        )}
-                    </button>
+                    {isSignedIn && (
+                        <button
+                            type="button"
+                            onClick={() => setMobileMenuOpen(v => !v)}
+                            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
+                                mobileMenuOpen 
+                                    ? 'bg-cyan-500 text-slate-950 border-cyan-400' 
+                                    : 'bg-slate-800/90 text-slate-200 border-white/15 hover:border-cyan-400/50'
+                            }`}
+                            aria-label="Toggle navigation menu"
+                        >
+                            {mobileMenuOpen ? (
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            ) : (
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                    <line x1="4" y1="7" x2="20" y2="7"/>
+                                    <line x1="4" y1="12" x2="20" y2="12"/>
+                                    <line x1="4" y1="17" x2="20" y2="17"/>
+                                </svg>
+                            )}
+                        </button>
+                    )}
 
-                    {mobileMenuOpen && (
+                    {isSignedIn && mobileMenuOpen && (
                         <div 
                             className="absolute top-full right-2 mt-2 w-52 bg-slate-900/95 backdrop-blur-xl border border-white/15 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                             style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.85)' }}
                         >
                             <div className="space-y-1">
-                                {isSignedIn && (
-                                    <button
-                                        onClick={() => {
-                                            setMobileMenuOpen(false);
-                                            setShowContact(true);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-950/40 rounded-xl transition-colors text-left"
-                                    >
-                                        <span>💬</span>
-                                        <span>Contact for Query</span>
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        setShowContact(true);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-950/40 rounded-xl transition-colors text-left"
+                                >
+                                    <span>💬</span>
+                                    <span>Contact for Query</span>
+                                </button>
 
-                                {isSignedIn && (
-                                    <button
-                                        onClick={() => {
-                                            setMobileMenuOpen(false);
-                                            setShowOrders(true);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:text-cyan-300 hover:bg-white/5 rounded-xl transition-colors text-left"
-                                    >
-                                        <span>📦</span>
-                                        <span>My Orders</span>
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        setShowOrders(true);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:text-cyan-300 hover:bg-white/5 rounded-xl transition-colors text-left"
+                                >
+                                    <span>📦</span>
+                                    <span>My Orders</span>
+                                </button>
 
                                 {!isAppInstalled && (
                                     <button

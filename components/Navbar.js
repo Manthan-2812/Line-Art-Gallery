@@ -218,37 +218,39 @@ function Navbar({ onAboutClick, onBrandClick }) {
                     <ClerkAuthButton />
                 </div>
 
-                {/* Mobile controls (< 768px): Auth + Hamburger menu */}
+                {/* Mobile controls (< 768px): Auth + Hamburger menu (shown only after sign in) */}
                 <div className="flex md:hidden items-center gap-2 shrink-0" ref={menuRef}>
                     <ClerkAuthButton compact={true} />
 
-                    {/* Three-lines Hamburger Button */}
-                    <button
-                        type="button"
-                        onClick={() => setMobileMenuOpen(v => !v)}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
-                            mobileMenuOpen 
-                                ? 'bg-cyan-500 text-slate-950 border-cyan-400' 
-                                : 'bg-slate-800/90 text-slate-200 border-white/15 hover:border-cyan-400/50'
-                        }`}
-                        aria-label="Toggle navigation menu"
-                    >
-                        {mobileMenuOpen ? (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                <line x1="4" y1="7" x2="20" y2="7"/>
-                                <line x1="4" y1="12" x2="20" y2="12"/>
-                                <line x1="4" y1="17" x2="20" y2="17"/>
-                            </svg>
-                        )}
-                    </button>
+                    {/* Three-lines Hamburger Button — shown after sign in */}
+                    {isSignedIn && (
+                        <button
+                            type="button"
+                            onClick={() => setMobileMenuOpen(v => !v)}
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
+                                mobileMenuOpen 
+                                    ? 'bg-cyan-500 text-slate-950 border-cyan-400' 
+                                    : 'bg-slate-800/90 text-slate-200 border-white/15 hover:border-cyan-400/50'
+                            }`}
+                            aria-label="Toggle navigation menu"
+                        >
+                            {mobileMenuOpen ? (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            ) : (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                    <line x1="4" y1="7" x2="20" y2="7"/>
+                                    <line x1="4" y1="12" x2="20" y2="12"/>
+                                    <line x1="4" y1="17" x2="20" y2="17"/>
+                                </svg>
+                            )}
+                        </button>
+                    )}
 
                     {/* Mobile Dropdown Menu Box */}
-                    {mobileMenuOpen && (
+                    {isSignedIn && mobileMenuOpen && (
                         <div 
                             className="absolute top-full right-3 mt-2 w-56 bg-slate-900/95 backdrop-blur-xl border border-white/15 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                             style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.85)' }}
