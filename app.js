@@ -623,6 +623,11 @@ function App() {
     <ContactQueryModal isOpen={showContact} onClose={() => setShowContact(false)} />
 )} 
 
+{/* Native Mobile App Exit Confirmation Dialog */}
+{typeof ExitConfirmModal !== 'undefined' && (
+    <ExitConfirmModal enabled={true} />
+)} 
+
 {/* Bottom PWA Install Prompt Banner */}
 {typeof PWAInstallBanner !== 'undefined' && <PWAInstallBanner />}
         </div>
