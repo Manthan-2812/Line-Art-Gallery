@@ -3,13 +3,15 @@
 //
 // Gallery Card Component:
 //   • Dual-URL support: Display URL (1st URL) + Optional 300-DPI Print Master (2nd URL)
+//   • Multi-Product Apparel Selector (V-Neck, Crew Neck, Hoodies, Oversized)
+//   • Full 6-Color Offset Customization (White, Black, Grey Melange, Navy, Royal Blue, Red)
+//   • Real-time Global Discount Rendering (Strikethrough Original + % Discount Badge)
 //   • Smooth lazy image loading with optimized Cloudinary transforms & skeleton shimmer
-//   • Liked state (synced with user account / localStorage)
-//   • T-Shirt buy modal with Color & Size selection
-//   • Admin controls (Pin, Rename, Price edit, Print Master attachment, Delete)
+//   • Instantaneous optimistic like rendering
+//   • Admin controls (Pin, Rename, Multi-color price edit, Print Master, Delete)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUpdatePrice, onUpdatePrintUrl, isNewestRecent }) {
+function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUpdatePrice, onUpdatePrintUrl, isNewestRecent, activeDiscount, customCatalog }) {
     const { useState, useEffect, useRef } = React;
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
@@ -26,6 +28,8 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         : 900;
 
     const legacyBlue = (image.blueOffset !== undefined && !isNaN(Number(image.blueOffset))) ? Number(image.blueOffset) : 50;
+    const currentBlackOffset = (image.blackOffset !== undefined && image.blackOffset !== null && !isNaN(Number(image.blackOffset))) ? Number(image.blackOffset) : 0;
+    const currentGreyOffset = (image.greyOffset !== undefined && image.greyOffset !== null && !isNaN(Number(image.greyOffset))) ? Number(image.greyOffset) : 0;
     const currentNavyOffset = (image.navyOffset !== undefined && image.navyOffset !== null && !isNaN(Number(image.navyOffset))) ? Number(image.navyOffset) : legacyBlue;
     const currentRoyalBlueOffset = (image.royalBlueOffset !== undefined && image.royalBlueOffset !== null && !isNaN(Number(image.royalBlueOffset))) ? Number(image.royalBlueOffset) : legacyBlue;
     const currentRedOffset = (image.redOffset !== undefined && image.redOffset !== null && !isNaN(Number(image.redOffset))) ? Number(image.redOffset) : legacyBlue;
@@ -38,10 +42,34 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     const [nameDraft, setNameDraft]                         = useState('');
     const [editingPriceModal, setEditingPriceModal]         = useState(false);
     const [priceDraft, setPriceDraft]                       = useState(currentPrice);
+    const [blackOffsetDraft, setBlackOffsetDraft]           = useState(currentBlackOffset);
+    const [greyOffsetDraft, setGreyOffsetDraft]             = useState(currentGreyOffset);
     const [navyOffsetDraft, setNavyOffsetDraft]             = useState(currentNavyOffset);
     const [royalBlueOffsetDraft, setRoyalBlueOffsetDraft]   = useState(currentRoyalBlueOffset);
     const [redOffsetDraft, setRedOffsetDraft]               = useState(currentRedOffset);
     
+    // Multi-Product Selection state & product color resolution
+    const storeProducts = (typeof window.getStoreProducts === 'function') 
+        ? window.getStoreProducts(customCatalog) 
+        : (window.DEFAULT_PRODUCTS || []);
+
+    const [selectedProduct, setSelectedProduct] = useState(storeProducts[0] || { id: 'v_neck', name: 'V-Neck T-Shirt (UV34)', skuPrefix: 'MVnHs', spec: '100% Combed Cotton • 180 GSM • Front DTG Print', basePrice: 900 });
+    const [showProductSelectModal, setShowProductSelectModal] = useState(false);
+
+    // Resolve available colors specifically configured for the selected product
+    const allowedColorIds = (selectedProduct && Array.isArray(selectedProduct.colors) && selectedProduct.colors.length > 0)
+        ? selectedProduct.colors
+        : ['Wh', 'Bk', 'Nb', 'Gm', 'Rb', 'Rd'];
+
+    const productColors = allowedColorIds.map(c => (typeof window.resolveColor === 'function' ? window.resolveColor(c) : c));
+
+    // Ensure selectedColor is always a valid color for the chosen product
+    useEffect(() => {
+        if (productColors.length > 0 && !productColors.some(c => c.id === selectedColor)) {
+            setSelectedColor(productColors[0].id);
+        }
+    }, [selectedProduct]);
+
     // Print Master Modal State (Admin)
     const [editingPrintModal, setEditingPrintModal] = useState(false);
     const [printUrlDraft, setPrintUrlDraft]         = useState(image.printUrl || '');
@@ -50,7 +78,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     const printFileInputRef                         = useRef(null);
     const titleInputRef                             = useRef(null);
     
-    // Purchase modal state: selected Color, Size, Print Placement & Quantity (Bulk Order)
+    // Purchase modal state
     const [showBuy, setShowBuy]                     = useState(false);
     const [showAllColors, setShowAllColors]         = useState(false);
     const [showMockupModal, setShowMockupModal]     = useState(false);
@@ -60,18 +88,33 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     const [printSide, setPrintSide]                 = useState('front'); // 'front' | 'both'
     const [quantity, setQuantity]                   = useState(1);
 
+    // Discount calculation
+    const isDiscountActive = activeDiscount && activeDiscount.active && activeDiscount.expiresAt && Date.now() < activeDiscount.expiresAt && (activeDiscount.appliesToProduct === 'ALL' || (selectedProduct?.skuPrefix && selectedProduct.skuPrefix.toUpperCase().startsWith(activeDiscount.appliesToProduct.toUpperCase())));
+    const discountPercent = isDiscountActive ? Number(activeDiscount.discountPercent || 0) : 0;
+
+    const discountedBasePrice = discountPercent > 0 
+        ? Math.max(1, Math.round(currentPrice * (1 - discountPercent / 100))) 
+        : currentPrice;
+
     // Dynamic price based on color selection & custom color offsets & dual print offset (+₹200)
     const getColorOffset = (cId) => {
+        if (cId === 'Bk') return currentBlackOffset;
+        if (cId === 'Gm') return currentGreyOffset;
         if (cId === 'Nb') return currentNavyOffset;
         if (cId === 'Rb') return currentRoyalBlueOffset;
         if (cId === 'Rd') return currentRedOffset;
-        return 0; // Wh, Bk, Gm
+        return 0; // Wh
     };
 
     const colorOffset = getColorOffset(selectedColor);
     const printOffset = printSide === 'both' ? 200 : 0;
-    const unitPrice   = currentPrice + colorOffset + printOffset;
+    const grossUnitPrice = currentPrice + colorOffset + printOffset;
+    const unitPrice = discountPercent > 0 
+        ? Math.max(1, Math.round(grossUnitPrice * (1 - discountPercent / 100))) 
+        : grossUnitPrice;
+
     const totalPrice  = unitPrice * Math.max(1, quantity);
+    const grossTotalPrice = grossUnitPrice * Math.max(1, quantity);
 
     // Re-sync if a parent re-renders this card with a different image.id or likes change
     useEffect(() => {
@@ -81,11 +124,13 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
 
     useEffect(() => {
         setPriceDraft(currentPrice);
+        setBlackOffsetDraft(currentBlackOffset);
+        setGreyOffsetDraft(currentGreyOffset);
         setNavyOffsetDraft(currentNavyOffset);
         setRoyalBlueOffsetDraft(currentRoyalBlueOffset);
         setRedOffsetDraft(currentRedOffset);
         setPrintUrlDraft(image.printUrl || '');
-    }, [image.price, image.navyOffset, image.royalBlueOffset, image.redOffset, image.blueOffset, image.printUrl]);
+    }, [image.price, image.blackOffset, image.greyOffset, image.navyOffset, image.royalBlueOffset, image.redOffset, image.blueOffset, image.printUrl]);
 
     // Auto-select title text when entering rename mode (admin)
     useEffect(() => {
@@ -97,7 +142,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
     const artworkName = image.name || 'Untitled Artwork';
     const hasPrintMaster = !!(image.printUrl || image.printMasterUrl);
 
-    // Admin rename: enter edit mode, persist on save
+    // Admin rename
     const startEditName = () => { setNameDraft(image.name || ''); setEditingName(true); };
     const saveName = () => {
         const trimmed = nameDraft.trim();
@@ -112,17 +157,21 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         if (e && e.preventDefault) e.preventDefault();
         setEditingPriceModal(false);
         const parsedP = Number(priceDraft);
+        const parsedBlack = Number(blackOffsetDraft);
+        const parsedGrey = Number(greyOffsetDraft);
         const parsedNavy = Number(navyOffsetDraft);
         const parsedRoyal = Number(royalBlueOffsetDraft);
         const parsedRed = Number(redOffsetDraft);
 
-        if (!isNaN(parsedP) && parsedP > 0 && !isNaN(parsedNavy) && parsedNavy >= 0 && !isNaN(parsedRoyal) && parsedRoyal >= 0 && !isNaN(parsedRed) && parsedRed >= 0) {
+        if (!isNaN(parsedP) && parsedP > 0) {
             if (onUpdatePrice) {
                 onUpdatePrice(image.id, parsedP, {
-                    navyOffset: parsedNavy,
-                    royalBlueOffset: parsedRoyal,
-                    redOffset: parsedRed,
-                    blueOffset: parsedNavy
+                    blackOffset: parsedBlack >= 0 ? parsedBlack : 0,
+                    greyOffset: parsedGrey >= 0 ? parsedGrey : 0,
+                    navyOffset: parsedNavy >= 0 ? parsedNavy : 50,
+                    royalBlueOffset: parsedRoyal >= 0 ? parsedRoyal : 50,
+                    redOffset: parsedRed >= 0 ? parsedRed : 50,
+                    blueOffset: parsedNavy >= 0 ? parsedNavy : 50
                 });
             }
         }
@@ -145,7 +194,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             const uploadPromise = new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', 'https://api.cloudinary.com/v1_1/dd6s1dgx3/auto/upload', true);
-                xhr.timeout = 240000; // 4 minutes
+                xhr.timeout = 240000;
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
@@ -193,11 +242,22 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         setEditingPrintModal(false);
     };
 
+    // Open Buy Modal or Product Format Selector
+    const handleBuyButtonClick = () => {
+        if (storeProducts.length > 1) {
+            setShowProductSelectModal(true);
+        } else {
+            setSelectedProduct(storeProducts[0] || { id: 'v_neck', name: 'V-Neck T-Shirt (UV34)', skuPrefix: 'MVnHs', spec: '100% Combed Cotton • 180 GSM • Front DTG Print' });
+            setShowBuy(true);
+        }
+    };
+
     // Navigate to checkout with chosen SKU, artwork price and quantity
     const proceedToCheckout = () => {
-        const sku = `MVnHs-${selectedColor}-${selectedSize}`;
+        const prefix = selectedProduct?.skuPrefix || 'MVnHs';
+        const sku = `${prefix}-${selectedColor}-${selectedSize}`;
         const colorObj = (window.PRODUCT_COLORS || []).find(c => c.id === selectedColor);
-        const colorName = colorObj ? colorObj.name : 'Classic White';
+        const colorName = colorObj ? (colorObj.shortName || colorObj.name) : 'Classic White';
         const finalQty = Math.max(1, parseInt(quantity, 10) || 1);
         const finalPrintUrl = image.printUrl || image.printMasterUrl || image.url;
         
@@ -212,7 +272,9 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             quantity:  String(finalQty),
             color:     colorName,
             size:      selectedSize,
-            printSide: printSide
+            printSide: printSide,
+            vLabel:    `${selectedProduct?.name || 'T-Shirt'} (${colorName} — Size ${selectedSize})`,
+            vSpec:     selectedProduct?.spec || '100% Combed Cotton • 180 GSM • Front DTG Print'
         });
         window.location.href = `checkout.html?${params.toString()}`;
     };
@@ -263,7 +325,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             }
         } catch (err) {
             console.error('Failed to sync like with server:', err);
-            // Revert on error
             setLiked(prevLiked);
             setLocalLikesCount(prev => Math.max(0, prev - delta));
             prevLiked ? window.__userLikedIds.add(image.id) : window.__userLikedIds.delete(image.id);
@@ -286,7 +347,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
         </svg>
     );
 
-    // Optimized Cloudinary thumbnail URL (auto-format WebP/AVIF, auto-quality, max width 700px for smooth multi-image loading)
+    // Optimized Cloudinary thumbnail URL
     const rawUrl = image.url || '';
     const optimizedImageUrl = (rawUrl.includes('/image/upload/'))
         ? rawUrl.replace('/image/upload/', '/image/upload/f_auto,q_auto:good,w_700,c_limit/')
@@ -297,7 +358,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             className="relative group bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700/50 flex flex-col transition-all duration-300 hover:border-cyan-500/40 hover:shadow-xl shadow-md"
             data-name="GalleryCard"
         >
-            {/* Recently Added header bar — on top of card with bg green and font text color white */}
+            {/* Recently Added header bar */}
             {isNewestRecent && (
                 <div className="bg-emerald-600 text-white text-[11px] font-bold py-1.5 px-3 text-center tracking-wider uppercase flex items-center justify-center gap-1.5 z-10 shrink-0 shadow-sm">
                     <span>✦</span>
@@ -309,7 +370,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
             {isAdmin && (
                 <button
                     onClick={() => onPin(image.id, !!image.pinned)}
-                    className={`absolute top-2 left-2 z-20 p-1.5 rounded-full transition-all duration-200 hover:scale-110 shadow-md ${image.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${
+                    className={`absolute ${isNewestRecent ? 'top-10' : 'top-2'} left-2 z-20 p-1.5 rounded-full transition-all duration-200 hover:scale-110 shadow-md ${image.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${
                         image.pinned
                             ? 'bg-amber-400 text-slate-900'
                             : 'bg-slate-800/90 hover:bg-amber-400 text-white hover:text-slate-900 border border-white/15'
@@ -325,7 +386,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
 
             {/* Admin Top-Right Control Group: Print Master badge + Delete */}
             {isAdmin && (
-                <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                <div className={`absolute ${isNewestRecent ? 'top-10' : 'top-2'} right-2 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200`}>
                     {/* Admin Print Master Button */}
                     <button
                         onClick={() => setEditingPrintModal(true)}
@@ -357,9 +418,8 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 </div>
             )}
 
-            {/* Image container — natural aspect ratio without cropping with smooth shimmer */}
+            {/* Image container with smooth shimmer */}
             <div className="relative overflow-hidden bg-slate-900 min-h-[140px] flex items-center justify-center">
-                {/* Skeleton Shimmer while image loads */}
                 {!imgLoaded && !imgError && (
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-800 via-slate-700/50 to-slate-800 animate-pulse flex items-center justify-center">
                         <div className="w-7 h-7 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin opacity-80" />
@@ -418,7 +478,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 {isAdmin && !editingName && (
                     <button
                         onClick={startEditName}
-                        className="shrink-0 text-slate-400 hover:text-cyan-400 transition-colors p-1"
+                        className="shrink-0 text-slate-400 hover:text-cyan-400 transition-colors p-1 cursor-pointer"
                         title="Rename artwork"
                     >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -428,7 +488,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 )}
             </div>
 
-            {/* Action bar: Likes & Price / Admin Price Editor */}
+            {/* Action bar: Likes & Strikethrough Discounted Price / Admin Price Editor */}
             <div className="bg-slate-900/95 px-3 py-2 flex justify-between items-center z-10 shrink-0 border-t border-white/5 relative">
                 {image.pinned && !isAdmin && (
                     <span className="bg-amber-400 text-slate-900 text-[9px] font-bold px-2 py-0.5 rounded-full pointer-events-none">
@@ -437,20 +497,31 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 )}
                 <button
                     onClick={handleLike}
-                    className={`flex items-center gap-1.5 transition-transform duration-150 hover:scale-110 ${liked ? 'text-pink-400' : 'text-slate-400 hover:text-pink-300'}`}
+                    className={`flex items-center gap-1.5 transition-transform duration-150 hover:scale-110 ${liked ? 'text-pink-400' : 'text-slate-400 hover:text-pink-300'} cursor-pointer`}
                     title={liked ? 'Unlike' : 'Like'}
                 >
                     <HeartIcon filled={liked} />
                     <span className="text-xs font-semibold tabular-nums">{localLikesCount}</span>
                 </button>
 
-                <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-slate-300">₹{currentPrice}</span>
+                <div className="flex items-center gap-1.5">
+                    {discountPercent > 0 ? (
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-[11px] text-slate-500 line-through">₹{currentPrice}</span>
+                            <span className="text-xs font-black text-emerald-400">₹{discountedBasePrice}</span>
+                            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] font-extrabold px-1 rounded">
+                                {discountPercent}% OFF
+                            </span>
+                        </div>
+                    ) : (
+                        <span className="text-xs font-bold text-slate-300">₹{currentPrice}</span>
+                    )}
+
                     {isAdmin && (
                         <button
                             onClick={() => setEditingPriceModal(true)}
-                            className="text-slate-400 hover:text-cyan-400 p-0.5 transition-colors"
-                            title="Edit artwork price & Navy Blue offset"
+                            className="text-slate-400 hover:text-cyan-400 p-0.5 transition-colors cursor-pointer"
+                            title="Edit artwork base price & individual color offsets"
                         >
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                 <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>
@@ -462,12 +533,64 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
 
             {/* Buy button */}
             <button
-                onClick={() => setShowBuy(true)}
+                onClick={handleBuyButtonClick}
                 className="w-full text-white text-xs font-bold py-2.5 hover:opacity-95 transition-all z-10 shrink-0 flex items-center justify-center gap-1.5 shadow-md active:scale-98 cursor-pointer"
                 style={{ background: 'linear-gradient(90deg,#06b6d4,#6366f1)' }}
             >
-                <span>Buy T-Shirt Print</span>
+                <span>Buy Artwork Print</span>
             </button>
+
+            {/* Multi-Product Category Selector Modal (If 2+ products are active) */}
+            {showProductSelectModal && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+                    onClick={() => setShowProductSelectModal(false)}
+                >
+                    <div 
+                        className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl relative"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setShowProductSelectModal(false)}
+                            className="absolute top-4 right-4 text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 uppercase">
+                                Choose Product Format
+                            </span>
+                        </div>
+                        <h4 className="text-xl font-bold text-white mb-1">Select Apparel Type</h4>
+                        <p className="text-xs text-slate-400 mb-5">{artworkName}</p>
+
+                        <div className="space-y-3">
+                            {storeProducts.map(p => (
+                                <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedProduct(p);
+                                        setShowProductSelectModal(false);
+                                        setShowBuy(true);
+                                    }}
+                                    className="w-full bg-slate-800/80 hover:bg-cyan-950/40 border border-white/10 hover:border-cyan-400/60 rounded-2xl p-4 flex items-center justify-between text-left transition-all hover:scale-[1.02] cursor-pointer"
+                                >
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{p.name}</p>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">{p.spec}</p>
+                                    </div>
+                                    <div className="text-right shrink-0 ml-3">
+                                        <span className="text-xs font-bold text-cyan-400">Select &rarr;</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Admin Print Master Management Modal */}
             {isAdmin && editingPrintModal && (
@@ -496,7 +619,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         <p className="text-xs text-slate-400 mb-4">{artworkName}</p>
 
                         <div className="space-y-4">
-                            {/* Upload New Print Master Button */}
                             <div 
                                 onClick={() => printFileInputRef.current?.click()}
                                 className="p-4 rounded-2xl border-2 border-dashed border-purple-400/50 hover:border-purple-400 bg-purple-950/20 hover:bg-purple-950/30 cursor-pointer text-center transition-all"
@@ -536,7 +658,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                 </p>
                             )}
 
-                            {/* Or Paste URL Form */}
                             <form onSubmit={savePrintUrl} className="space-y-3">
                                 <div>
                                     <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
@@ -599,16 +720,16 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                     onClick={() => setEditingPriceModal(false)}
                 >
                     <div 
-                        className="bg-slate-900 border border-white/15 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative"
+                        className="bg-slate-900 border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl relative max-h-[90vh] overflow-y-auto"
                         onClick={e => e.stopPropagation()}
                     >
-                        <h4 className="text-base font-bold text-white mb-1">Edit Artwork Price</h4>
+                        <h4 className="text-base font-bold text-white mb-1">Edit Artwork Price &amp; Color Offsets</h4>
                         <p className="text-xs text-slate-400 mb-4">{artworkName}</p>
 
-                        <form onSubmit={savePriceAndOffset} className="space-y-3">
+                        <form onSubmit={savePriceAndOffset} className="space-y-3.5">
                             <div>
                                 <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-                                    Base Price (White, Black, Grey) — INR ₹
+                                    Base Price (White) — INR ₹
                                 </label>
                                 <input
                                     type="number"
@@ -620,7 +741,35 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                 />
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Black (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={blackOffsetDraft}
+                                        onChange={e => setBlackOffsetDraft(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-2.5 py-1.5 text-white font-bold text-xs focus:outline-none focus:border-cyan-400"
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Grey Melange (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={greyOffsetDraft}
+                                        onChange={e => setGreyOffsetDraft(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-2.5 py-1.5 text-white font-bold text-xs focus:outline-none focus:border-cyan-400"
+                                        placeholder="0"
+                                    />
+                                </div>
+
                                 <div>
                                     <label className="block text-[10px] font-bold text-blue-300 uppercase tracking-wider mb-1">
                                         Navy Blue (+₹)
@@ -666,8 +815,16 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
 
                             <div className="bg-slate-800/80 rounded-2xl p-3 border border-white/10 space-y-1 text-[11px]">
                                 <div className="flex justify-between text-slate-300">
-                                    <span>White / Black / Grey:</span>
+                                    <span>White:</span>
                                     <span className="font-bold text-white">₹{Number(priceDraft) || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-slate-300">
+                                    <span>Black:</span>
+                                    <span className="font-bold text-white">₹{(Number(priceDraft) || 0) + (Number(blackOffsetDraft) || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-slate-300">
+                                    <span>Grey Melange:</span>
+                                    <span className="font-bold text-white">₹{(Number(priceDraft) || 0) + (Number(greyOffsetDraft) || 0)}</span>
                                 </div>
                                 <div className="flex justify-between text-blue-300">
                                     <span>Navy Blue:</span>
@@ -703,7 +860,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 </div>
             )}
 
-            {/* T-Shirt Color, Size & Quantity selection modal */}
+            {/* Customization & Purchase Modal */}
             {showBuy && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
@@ -714,7 +871,6 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         style={{ background: 'rgba(15,23,42,0.98)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.8)' }}
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* Top-Right Close Cross Button */}
                         <button
                             type="button"
                             onClick={() => setShowBuy(false)}
@@ -727,9 +883,18 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         <div className="flex items-center gap-4 sm:gap-5 mb-6 pb-5 border-b border-white/10 pr-6">
                             <img src={image.url} alt="" className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-2xl border border-white/15 shadow-xl shrink-0" />
                             <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">Premium Wearable Art</p>
+                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                    <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
+                                        {selectedProduct?.name || 'Wearable Art'}
+                                    </span>
+                                    {discountPercent > 0 && (
+                                        <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-[9px] font-black px-2 py-0.2 rounded-full">
+                                            {discountPercent}% OFF APPLIED
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-lg sm:text-2xl font-bold text-white truncate">{artworkName}</p>
-                                <p className="text-xs sm:text-sm text-slate-400 mt-1">100% Combed Cotton • 180 GSM • Front DTG Print</p>
+                                <p className="text-xs sm:text-sm text-slate-400 mt-1">{selectedProduct?.spec || '100% Combed Cotton • 180 GSM • Front DTG Print'}</p>
                             </div>
                         </div>
 
@@ -737,21 +902,26 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         <div className="mb-6">
                             <div className="flex justify-between items-center mb-3">
                                 <label className="block text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">
-                                    1. Select T-Shirt Color
+                                    1. Select Apparel Color
                                 </label>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllColors(v => !v)}
-                                    className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 cursor-pointer"
-                                >
-                                    <span>{showAllColors ? '− Show Fewer' : '+ See More Colors'}</span>
-                                </button>
+                                {productColors.length > 3 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllColors(v => !v)}
+                                        className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 cursor-pointer"
+                                    >
+                                        <span>{showAllColors ? '− Show Fewer' : '+ See More Colors'}</span>
+                                    </button>
+                                )}
                             </div>
                             <div className="grid grid-cols-3 gap-3">
-                                {(window.PRODUCT_COLORS || []).filter(c => showAllColors || c.primary || selectedColor === c.id).map(c => {
+                                {productColors.filter(c => showAllColors || productColors.length <= 3 || c.primary || selectedColor === c.id).map(c => {
                                     const active = selectedColor === c.id;
                                     const cOffset = getColorOffset(c.id);
-                                    const colorPrice = currentPrice + cOffset;
+                                    const fullColorPrice = currentPrice + cOffset;
+                                    const discountedColorPrice = discountPercent > 0
+                                        ? Math.max(1, Math.round(fullColorPrice * (1 - discountPercent / 100)))
+                                        : fullColorPrice;
 
                                     return (
                                         <button
@@ -771,21 +941,25 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                                     {c.shortName || c.name}
                                                 </span>
                                                 <span className="block text-[10px] text-slate-400 mt-0.5">
-                                                    ₹{colorPrice}
+                                                    {discountPercent > 0 ? (
+                                                        <span><span className="line-through text-slate-500 mr-1">₹{fullColorPrice}</span><strong className="text-emerald-400">₹{discountedColorPrice}</strong></span>
+                                                    ) : (
+                                                        <span>₹{fullColorPrice}</span>
+                                                    )}
                                                 </span>
                                             </div>
                                         </button>
                                     );
                                 })}
                             </div>
-                            {!showAllColors && (
+                            {productColors.length > 3 && !showAllColors && (
                                 <div className="mt-2 text-center">
                                     <button
                                         type="button"
                                         onClick={() => setShowAllColors(true)}
                                         className="text-[11px] font-semibold text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
                                     >
-                                        + 3 more colors available (Grey Melange, Royal Blue, Crimson Red)
+                                        + {productColors.length - 3} more colors available
                                     </button>
                                 </div>
                             )}
@@ -925,14 +1099,21 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                                     )}
                                 </div>
                             </div>
-                            <span className="text-2xl sm:text-3xl font-extrabold text-cyan-400">₹{totalPrice}</span>
+                            <div className="text-right">
+                                {discountPercent > 0 && (
+                                    <span className="block text-xs sm:text-sm text-slate-500 line-through">₹{grossTotalPrice}</span>
+                                )}
+                                <span className={`text-2xl sm:text-3xl font-extrabold ${discountPercent > 0 ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                                    ₹{totalPrice}
+                                </span>
+                            </div>
                         </div>
 
                         {/* Actions */}
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowBuy(false)}
-                                className="w-1/3 text-xs sm:text-sm font-semibold text-slate-400 hover:text-white py-3.5 sm:py-4 bg-slate-800/70 hover:bg-slate-800 rounded-2xl transition-colors"
+                                className="w-1/3 text-xs sm:text-sm font-semibold text-slate-400 hover:text-white py-3.5 sm:py-4 bg-slate-800/70 hover:bg-slate-800 rounded-2xl transition-colors cursor-pointer"
                             >
                                 Cancel
                             </button>
@@ -950,7 +1131,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                 </div>
             )}
 
-            {/* Realistic T-Shirt Product Preview Modal (Front & Back) */}
+            {/* Realistic T-Shirt Product Preview Modal */}
             {typeof ProductMockupModal !== 'undefined' && (
                 <ProductMockupModal
                     isOpen={showMockupModal}
@@ -991,11 +1172,10 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         onClick={e => e.stopPropagation()}
                         style={{ boxShadow: '0 25px 60px -15px rgba(245,158,11,0.25)' }}
                     >
-                        {/* Cross Button */}
                         <button
                             type="button"
                             onClick={() => setShowDualPrintWarning(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-lg"
+                            className="absolute top-4 right-4 text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-lg cursor-pointer"
                             title="Close"
                         >
                             ✕
@@ -1016,21 +1196,21 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                         </div>
 
                         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                            Selecting <strong className="text-white">Front & Back</strong> printing adds an extra <strong className="text-amber-300 font-bold">₹200</strong> per T-shirt for the second high-definition DTG print run on the back.
+                            Selecting <strong className="text-white">Front & Back</strong> printing adds an extra <strong className="text-amber-300 font-bold">₹200</strong> per item for the second high-definition DTG print run on the back.
                         </p>
 
                         <div className="bg-slate-800/80 rounded-2xl p-3.5 border border-white/10 mb-5 text-xs text-slate-300 space-y-1">
                             <div className="flex justify-between">
                                 <span>Single Side Unit Price:</span>
-                                <span className="font-semibold text-white">₹{currentPrice + colorOffset}</span>
+                                <span className="font-semibold text-white">₹{grossUnitPrice - printOffset}</span>
                             </div>
                             <div className="flex justify-between text-amber-300 font-bold">
                                 <span>Back Print Fee:</span>
                                 <span>+₹200</span>
                             </div>
                             <div className="border-t border-white/10 pt-1.5 flex justify-between text-white font-extrabold text-sm">
-                                <span>New Unit Price:</span>
-                                <span className="text-cyan-400">₹{currentPrice + colorOffset + 200}</span>
+                                <span>Total Unit Price:</span>
+                                <span className="text-cyan-400">₹{unitPrice}</span>
                             </div>
                         </div>
 
@@ -1038,7 +1218,7 @@ function GalleryCard({ image, isAdmin, onDelete, onUpdate, onPin, onRename, onUp
                             <button
                                 type="button"
                                 onClick={() => setShowDualPrintWarning(false)}
-                                className="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-bold text-slate-300 hover:text-white rounded-2xl transition-colors"
+                                className="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-bold text-slate-300 hover:text-white rounded-2xl transition-colors cursor-pointer"
                             >
                                 Cancel
                             </button>

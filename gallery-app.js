@@ -3,10 +3,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── GalleryCanvasBackground ───────────────────────────────────────────────────
-// Same orb-based nebula as the landing page but with dramatically reduced alpha
-// and speed so the gallery feels calm and the artwork takes focus.
-// TO TWEAK: Adjust GALLERY_ALPHA and VEL below.
-// ─────────────────────────────────────────────────────────────────────────────
 function GalleryCanvasBackground() {
     const { useRef, useEffect } = React;
     const ref = useRef(null);
@@ -17,7 +13,7 @@ function GalleryCanvasBackground() {
         const ctx = canvas.getContext('2d');
         let animId;
 
-        const GALLERY_ALPHA = 0.06;   // very subtle — don't distract from art
+        const GALLERY_ALPHA = 0.06;
         const VEL           = 0.18;
         const COUNT         = 5;
 
@@ -63,37 +59,17 @@ function GalleryCanvasBackground() {
     return <canvas ref={ref} style={{ position:'fixed', top:0, left:0, width:'100%', height:'100%', zIndex:0, pointerEvents:'none' }} />;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GalleryApp — Gallery Page root component
-//
-// STATE FLOW:
-//   isAdmin  — read from JWT token on every mount (checkIsAdmin()).
-//              If admin logs out from the Landing page and returns here, the
-//              token will be gone so isAdmin will be false automatically.
-//   images   — array loaded from localStorage via getGalleryImages() on mount.
-//              Every like/comment/delete is written back via saveGalleryImages().
-//   isLoaded — triggers the entry TransitionOverlay to wipe off.
-//
-// CLOUDINARY UPLOAD:
-//   handleUpload() calls cloudinary.createUploadWidget().
-//   Replace CLOUD_NAME and UPLOAD_PRESET with your own values before using.
-//   The Cloudinary script tag in gallery.html loads the widget SDK.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── Cloudinary config — fill these in before using the upload widget ──────────
+// ── Cloudinary config ────────────────────────────────────────────────────────
 const CLOUD_NAME    = 'dd6s1dgx3';
 const UPLOAD_PRESET = 'vfxnz7wq';
 
-// Gallery title — same per-letter palette as the landing page (no typewriter)
+// Gallery title letter colors
 const GALLERY_LETTER_COLORS = [
     '#f472b6','#fb923c','#facc15','#4ade80',
     '#22d3ee','#60a5fa','#a78bfa','#f472b6',
     '#fb923c','#facc15'
 ];
 
-// ── GalleryTitle — defined outside GalleryApp so React never re-mounts it ─────
-// Renders "Art Gallery" with per-letter static colours matching the landing page.
-// No typewriter animation here — the gallery is a destination, not an intro.
 function GalleryTitle() {
     return (
         <h1 className="text-base sm:text-2xl md:text-3xl font-extrabold tracking-wider text-center flex-1 mx-2 sm:mx-4 leading-none flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
@@ -120,31 +96,57 @@ const ADMIN_EMAILS = [
 ];
 
 function GalleryApp() {
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
     const { motion } = window.Motion;
     const userState = window.useClerkUser ? window.useClerkUser() : { isSignedIn: false, user: null };
     const isSignedIn = userState.isSignedIn;
 
-    const [isAdmin,             setIsAdmin]             = useState(false);
-    const [images,              setImages]              = useState([]);
-    const [isLoaded,            setIsLoaded]            = useState(false);
-    const [showUpload,          setShowUpload]          = useState(false);
-    const [showOrders,          setShowOrders]          = useState(false);
-    const [userLikes,           setUserLikes]           = useState(new Set());
+    const [isAdmin,                  setIsAdmin]                  = useState(false);
+    const [images,                   setImages]                   = useState([]);
+    const [isLoaded,                 setIsLoaded]                 = useState(false);
+    const [showUpload,               setShowUpload]               = useState(false);
+    const [showOrders,               setShowOrders]               = useState(false);
+    const [userLikes,                setUserLikes]                = useState(new Set());
+    
+    // Bulk Price Modal State
     const [showBulkPriceModal,       setShowBulkPriceModal]       = useState(false);
     const [bulkPriceVal,             setBulkPriceVal]             = useState('900');
+    const [bulkBlackOffsetVal,        setBulkBlackOffsetVal]        = useState('0');
+    const [bulkGreyOffsetVal,         setBulkGreyOffsetVal]         = useState('0');
     const [bulkNavyOffsetVal,        setBulkNavyOffsetVal]        = useState('50');
     const [bulkRoyalBlueOffsetVal,   setBulkRoyalBlueOffsetVal]   = useState('50');
     const [bulkRedOffsetVal,         setBulkRedOffsetVal]         = useState('50');
     const [isProcessingBulk,         setIsProcessingBulk]         = useState(false);
+
+    // Global Discounts State
+    const [activeDiscount,           setActiveDiscount]           = useState(null);
+    const [showDiscountModal,        setShowDiscountModal]        = useState(false);
+    const [discountPercentVal,       setDiscountPercentVal]       = useState('15');
+    const [discountDaysVal,          setDiscountDaysVal]          = useState('7');
+    const [discountProductVal,       setDiscountProductVal]       = useState('ALL');
+    const [isProcessingDiscount,     setIsProcessingDiscount]     = useState(false);
+
+    // Product Catalog State
+    const [customCatalog,            setCustomCatalog]            = useState(null);
+    const [showCatalogModal,         setShowCatalogModal]         = useState(false);
+    const [newProductName,           setNewProductName]           = useState('');
+    const [newProductSkuPrefix,      setNewProductSkuPrefix]      = useState('');
+    const [newProductBasePrice,      setNewProductBasePrice]      = useState('950');
+    const [newProductSpec,           setNewProductSpec]           = useState('100% Combed Cotton • 240 GSM Heavyweight');
+    const [newProductColors,         setNewProductColors]         = useState(['Wh', 'Bk', 'Nb', 'Gm', 'Rb', 'Rd']);
+    const [newProductSizes,          setNewProductSizes]          = useState(['S', 'M', 'L', 'XL', 'XXL']);
+    const [isProcessingCatalog,      setIsProcessingCatalog]      = useState(false);
+
+    // Customer Support & Policy Modals
     const [showContact,              setShowContact]              = useState(false);
     const [showTAC,                  setShowTAC]                  = useState(false);
     const [showDelivery,             setShowDelivery]             = useState(false);
     const [mobileMenuOpen,           setMobileMenuOpen]           = useState(false);
-    const [isDeletingAll,       setIsDeletingAll]       = useState(false);
-    const [installPrompt,       setInstallPrompt]       = useState(null);
-    const mobileMenuRef = React.useRef(null);
-    const [isAppInstalled,      setIsAppInstalled]      = useState(() => {
+    const [isDeletingAll,            setIsDeletingAll]            = useState(false);
+    const [installPrompt,            setInstallPrompt]            = useState(null);
+    const mobileMenuRef = useRef(null);
+
+    const [isAppInstalled, setIsAppInstalled] = useState(() => {
         return (
             (typeof window !== 'undefined' && (
                 window.matchMedia('(display-mode: standalone)').matches || 
@@ -216,7 +218,7 @@ function GalleryApp() {
         }
     };
 
-    // Sync admin status and user-specific likes from Clerk authentication
+    // Sync admin status and user-specific likes from Clerk
     useEffect(() => {
         if (!window.__clerkReady) return;
         let unsubClerk;
@@ -251,23 +253,31 @@ function GalleryApp() {
         return () => { if (typeof unsubClerk === 'function') unsubClerk(); };
     }, []);
 
+    // Subscribe to images, discounts and product catalog in real-time
     useEffect(() => {
         let first = true;
-        const unsub = subscribeToImages((imgs) => {
+        const unsubImgs = subscribeToImages((imgs) => {
             setImages(imgs);
             if (first) {
                 setTimeout(() => setIsLoaded(true), 120);
                 first = false;
             }
         });
-        return () => unsub();
+
+        const unsubDisc = (typeof subscribeToDiscounts === 'function') ? subscribeToDiscounts((d) => setActiveDiscount(d)) : null;
+        const unsubCat  = (typeof subscribeToCatalog === 'function') ? subscribeToCatalog((c) => setCustomCatalog(c)) : null;
+
+        return () => {
+            if (typeof unsubImgs === 'function') unsubImgs();
+            if (typeof unsubDisc === 'function') unsubDisc();
+            if (typeof unsubCat === 'function') unsubCat();
+        };
     }, []);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     const navigateHome = () => TriggerTransition('index.html');
 
-    // Persist updated likes/comments to Firestore; onSnapshot auto-refreshes UI
     const handleUpdate = (id, updatedImage) => {
         updateImageInFirebase(id, {
             likes:    updatedImage.likes,
@@ -275,36 +285,32 @@ function GalleryApp() {
         }).catch(err => console.error('[Firebase] update failed:', err));
     };
 
-    // Delete a card — removes Firestore doc; onSnapshot removes card from UI
     const handleDelete = (id) => {
         if (!confirm('Delete this artwork?')) return;
         deleteImageFromFirebase(id)
             .catch(err => console.error('[Firebase] delete failed:', err));
     };
 
-    // Called by FileUploadZone after each successful Cloudinary upload.
-    // Adds a new Firestore doc; onSnapshot prepends card to gallery automatically.
     const handleUploaded = (newImg) => {
         addImageToFirebase({ ...newImg, pinned: false, addedAt: Date.now() })
             .catch(err => console.error('[Firebase] add failed:', err));
     };
 
-    // Toggle pinned state for a single image — pinned images sort to the top
     const handlePin = (id, currentPinned) => {
         updateImageInFirebase(id, { pinned: !currentPinned })
             .catch(err => console.error('[Firebase] pin failed:', err));
     };
     
-    // Rename an artwork — admin only; persists the custom name to Firestore
     const handleRename = (id, newName) => {
         updateImageInFirebase(id, { name: newName })
             .catch(err => console.error('[Firebase] rename failed:', err));
     };
 
-    // Update artwork price & color offsets — admin only; persists custom price to Firestore
     const handleUpdatePrice = (id, newPrice, offsets) => {
         const updateObj = { price: Number(newPrice) };
         if (typeof offsets === 'object' && offsets !== null) {
+            if (offsets.blackOffset !== undefined) updateObj.blackOffset = Number(offsets.blackOffset);
+            if (offsets.greyOffset !== undefined) updateObj.greyOffset = Number(offsets.greyOffset);
             if (offsets.navyOffset !== undefined) updateObj.navyOffset = Number(offsets.navyOffset);
             if (offsets.royalBlueOffset !== undefined) updateObj.royalBlueOffset = Number(offsets.royalBlueOffset);
             if (offsets.redOffset !== undefined) updateObj.redOffset = Number(offsets.redOffset);
@@ -319,14 +325,12 @@ function GalleryApp() {
             .catch(err => console.error('[Firebase] update price failed:', err));
     };
 
-    // Attach, update or remove the 300-DPI Print Master URL (2nd URL) for an artwork — admin only
     const handleUpdatePrintUrl = (id, newPrintUrl) => {
         const cleanUrl = (newPrintUrl && typeof newPrintUrl === 'string') ? newPrintUrl.trim() : null;
         updateImageInFirebase(id, { printUrl: cleanUrl || null })
             .catch(err => console.error('[Firebase] update printUrl failed:', err));
     };
 
-    // Bulk delete all artworks — admin only
     const handleDeleteAll = async () => {
         if (images.length === 0) {
             alert('No artworks to delete.');
@@ -353,6 +357,8 @@ function GalleryApp() {
     const handleBulkUpdatePrice = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
         const parsedPrice = Number(bulkPriceVal);
+        const parsedBlack = Number(bulkBlackOffsetVal);
+        const parsedGrey = Number(bulkGreyOffsetVal);
         const parsedNavy = Number(bulkNavyOffsetVal);
         const parsedRoyalBlue = Number(bulkRoyalBlueOffsetVal);
         const parsedRed = Number(bulkRedOffsetVal);
@@ -361,8 +367,8 @@ function GalleryApp() {
             alert('Please enter a valid positive base price (e.g. 900)');
             return;
         }
-        if (isNaN(parsedNavy) || parsedNavy < 0 || isNaN(parsedRoyalBlue) || parsedRoyalBlue < 0 || isNaN(parsedRed) || parsedRed < 0) {
-            alert('Please enter valid positive offsets (e.g. 50, 0) for colored shirts');
+        if (isNaN(parsedBlack) || parsedBlack < 0 || isNaN(parsedGrey) || parsedGrey < 0 || isNaN(parsedNavy) || parsedNavy < 0 || isNaN(parsedRoyalBlue) || parsedRoyalBlue < 0 || isNaN(parsedRed) || parsedRed < 0) {
+            alert('Please enter valid positive offsets (e.g. 50, 0) for colors');
             return;
         }
         if (images.length === 0) {
@@ -370,7 +376,7 @@ function GalleryApp() {
             return;
         }
         const confirmed = confirm(
-            `Update ALL ${images.length} artworks to:\n• Base Price (White, Black, Grey): ₹${parsedPrice}\n• Navy Blue: ₹${parsedPrice + parsedNavy} (+₹${parsedNavy})\n• Royal Blue: ₹${parsedPrice + parsedRoyalBlue} (+₹${parsedRoyalBlue})\n• Crimson Red: ₹${parsedPrice + parsedRed} (+₹${parsedRed})?`
+            `Update ALL ${images.length} artworks to:\n• Base Price (White): ₹${parsedPrice}\n• Black: ₹${parsedPrice + parsedBlack} (+₹${parsedBlack})\n• Grey Melange: ₹${parsedPrice + parsedGrey} (+₹${parsedGrey})\n• Navy Blue: ₹${parsedPrice + parsedNavy} (+₹${parsedNavy})\n• Royal Blue: ₹${parsedPrice + parsedRoyalBlue} (+₹${parsedRoyalBlue})\n• Crimson Red: ₹${parsedPrice + parsedRed} (+₹${parsedRed})?`
         );
         if (!confirmed) return;
 
@@ -378,6 +384,8 @@ function GalleryApp() {
         try {
             const updatePromises = images.map(img => updateImageInFirebase(img.id, { 
                 price: parsedPrice,
+                blackOffset: parsedBlack,
+                greyOffset: parsedGrey,
                 navyOffset: parsedNavy,
                 royalBlueOffset: parsedRoyalBlue,
                 redOffset: parsedRed,
@@ -393,24 +401,144 @@ function GalleryApp() {
         }
     };
 
+    // Apply Global Store Discount
+    const handleApplyDiscount = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const pct = Number(discountPercentVal);
+        const days = Number(discountDaysVal);
+
+        if (isNaN(pct) || pct < 1 || pct > 90) {
+            alert('Discount percentage must be between 1% and 90%.');
+            return;
+        }
+        if (isNaN(days) || days < 1) {
+            alert('Please specify a duration of at least 1 day.');
+            return;
+        }
+
+        const expiresAt = Date.now() + (days * 24 * 60 * 60 * 1000);
+        setIsProcessingDiscount(true);
+        try {
+            if (typeof saveDiscountToFirebase === 'function') {
+                await saveDiscountToFirebase({
+                    discountPercent: pct,
+                    durationDays: days,
+                    appliesToProduct: discountProductVal || 'ALL',
+                    expiresAt: expiresAt,
+                    createdAt: Date.now()
+                });
+            }
+            setShowDiscountModal(false);
+        } catch (err) {
+            console.error('[Firebase] Failed to apply discount:', err);
+            alert('Error applying discount: ' + (err.message || err));
+        } finally {
+            setIsProcessingDiscount(false);
+        }
+    };
+
+    // Remove Global Store Discount
+    const handleRemoveDiscount = async () => {
+        if (!confirm('Remove and cancel the active store discount? Prices will revert to original immediately.')) return;
+        setIsProcessingDiscount(true);
+        try {
+            if (typeof removeDiscountFromFirebase === 'function') {
+                await removeDiscountFromFirebase();
+            }
+            setShowDiscountModal(false);
+        } catch (err) {
+            console.error('[Firebase] Failed to remove discount:', err);
+            alert('Error removing discount: ' + (err.message || err));
+        } finally {
+            setIsProcessingDiscount(false);
+        }
+    };
+
+    // Add New Product to Store Catalog
+    const handleAddProduct = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const cleanName = newProductName.trim();
+        const cleanSku = newProductSkuPrefix.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '');
+        const basePrice = Number(newProductBasePrice);
+
+        if (!cleanName) {
+            alert('Please enter a product name (e.g. Classic Crew Neck T-Shirt).');
+            return;
+        }
+        if (!cleanSku || cleanSku.length < 2 || cleanSku.length > 10) {
+            alert('Qikink SKU Prefix must be 2 to 10 alphanumeric characters (e.g. US21, UC22, UH32).');
+            return;
+        }
+        if (isNaN(basePrice) || basePrice <= 0) {
+            alert('Please enter a valid positive base price.');
+            return;
+        }
+        if (newProductColors.length === 0) {
+            alert('Please select at least one available color.');
+            return;
+        }
+        if (newProductSizes.length === 0) {
+            alert('Please select at least one available size.');
+            return;
+        }
+
+        const newProdObj = {
+            id: 'prod_' + Date.now().toString().slice(-6),
+            name: cleanName,
+            skuPrefix: cleanSku,
+            basePrice: basePrice,
+            spec: newProductSpec.trim() || '100% Combed Cotton • Premium DTG Print',
+            printTypeId: 1,
+            colors: newProductColors,
+            sizes: newProductSizes,
+            active: true
+        };
+
+        setIsProcessingCatalog(true);
+        try {
+            const currentList = customCatalog || window.DEFAULT_PRODUCTS || [];
+            const updatedList = [...currentList, newProdObj];
+            if (typeof saveCatalogToFirebase === 'function') {
+                await saveCatalogToFirebase(updatedList);
+            }
+            setNewProductName('');
+            setNewProductSkuPrefix('');
+            setShowCatalogModal(false);
+        } catch (err) {
+            console.error('[Firebase] Failed to save product:', err);
+            alert('Error saving product: ' + (err.message || err));
+        } finally {
+            setIsProcessingCatalog(false);
+        }
+    };
+
+    // Toggle Product active status
+    const handleToggleProduct = async (prodId, currentActive) => {
+        const currentList = customCatalog || window.DEFAULT_PRODUCTS || [];
+        const updatedList = currentList.map(p => p.id === prodId ? { ...p, active: !currentActive } : p);
+        if (typeof saveCatalogToFirebase === 'function') {
+            await saveCatalogToFirebase(updatedList);
+        }
+    };
+
     // ── Derived display data ───────────────────────────────────────────────────
     const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const _now          = Date.now();
 
-    // Pinned images first, then newest-first within each group
     const sortedImages = [...images].sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
         return (b.addedAt || 0) - (a.addedAt || 0);
     });
 
-    // ID of the single most-recently-uploaded image within the last 7 days
     const recentImgs    = images.filter(img => img.addedAt && (_now - img.addedAt) < SEVEN_DAYS_MS);
     const newestRecentId = recentImgs.length > 0
         ? recentImgs.reduce((a, b) => a.addedAt > b.addedAt ? a : b).id
         : null;
 
-    // ── Render ─────────────────────────────────────────────────────────────────
+    const isDiscountActive = activeDiscount && activeDiscount.active && activeDiscount.expiresAt && Date.now() < activeDiscount.expiresAt;
+    const discountDaysLeft = isDiscountActive ? Math.ceil((activeDiscount.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)) : 0;
+
     return (
         <div className="min-h-screen pb-24 relative" data-name="GalleryApp">
 
@@ -434,7 +562,7 @@ function GalleryApp() {
                     <span className="hidden sm:inline">Back</span>
                 </button>
 
-                {/* Centred gradient title — horizontal single line */}
+                {/* Centred gradient title */}
                 <GalleryTitle />
 
                 {/* Desktop controls (>= 768px) */}
@@ -481,7 +609,7 @@ function GalleryApp() {
                     )}
                 </div>
 
-                {/* Mobile controls (< 768px): Auth + Hamburger menu (shown only after sign in) */}
+                {/* Mobile controls (< 768px) */}
                 <div className="flex md:hidden items-center gap-1.5 shrink-0" ref={mobileMenuRef}>
                     <ClerkAuthButton compact={true} />
 
@@ -563,6 +691,16 @@ function GalleryApp() {
                 </div>
             </nav>
 
+            {/* ── Active Storewide Discount Ribbon ──────────────────────────────── */}
+            {isDiscountActive && (
+                <div className="relative z-30 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 py-2.5 px-4 text-center text-slate-950 font-extrabold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2">
+                    <span className="text-base animate-bounce">🎉</span>
+                    <span>
+                        SPECIAL PROMOTION: <strong>{activeDiscount.discountPercent}% OFF</strong> on all artwork prints! ({discountDaysLeft} day{discountDaysLeft > 1 ? 's' : ''} left)
+                    </span>
+                </div>
+            )}
+
             {/* ── Gallery Content ───────────────────────────────────────────────── */}
             <main className="relative z-10 container mx-auto px-3 sm:px-4 mt-8">
 
@@ -575,7 +713,7 @@ function GalleryApp() {
                         transition={{ duration: 0.4 }}
                     >
                         {/* Admin Action Bar */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-900/80 border border-white/10 rounded-2xl mb-4 backdrop-blur-md shadow-xl">
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 p-3.5 bg-slate-900/90 border border-white/10 rounded-2xl mb-4 backdrop-blur-md shadow-xl">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 border border-cyan-400/20 px-3 py-1.5 rounded-xl">
                                     Admin Toolbar ({images.length} Artworks)
@@ -587,49 +725,72 @@ function GalleryApp() {
                                 <button
                                     onClick={() => setShowBulkPriceModal(true)}
                                     disabled={images.length === 0}
-                                    className="flex items-center gap-1.5 font-bold py-2 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-400/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                                    title="Set base price for all artworks in the gallery"
+                                    className="flex items-center gap-1.5 font-bold py-2 px-3 rounded-xl text-xs sm:text-sm text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-400/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    title="Set base prices & color offsets for all artworks"
                                 >
                                     <span>₹</span>
                                     <span>Set All Prices</span>
+                                </button>
+
+                                {/* Manage Discount Button */}
+                                <button
+                                    onClick={() => setShowDiscountModal(true)}
+                                    className={`flex items-center gap-1.5 font-bold py-2 px-3 rounded-xl text-xs sm:text-sm transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                                        isDiscountActive
+                                            ? 'text-emerald-300 bg-emerald-500/20 border border-emerald-400/50 shadow-md ring-1 ring-emerald-400/40'
+                                            : 'text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-400/30'
+                                    }`}
+                                    title="Apply or remove storewide percentage discount"
+                                >
+                                    <span>🏷️</span>
+                                    <span>{isDiscountActive ? `${activeDiscount.discountPercent}% OFF Active` : 'Set Discount'}</span>
+                                </button>
+
+                                {/* Manage Products Catalog Button */}
+                                <button
+                                    onClick={() => setShowCatalogModal(true)}
+                                    className="flex items-center gap-1.5 font-bold py-2 px-3 rounded-xl text-xs sm:text-sm text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    title="Add or manage product formats (V-Neck, Crew Neck, Hoodies, etc.)"
+                                >
+                                    <span>👕</span>
+                                    <span>Products</span>
                                 </button>
 
                                 {/* Delete All Artworks Button */}
                                 <button
                                     onClick={handleDeleteAll}
                                     disabled={isDeletingAll || images.length === 0}
-                                    className="flex items-center gap-1.5 font-bold py-2 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-400/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    className="flex items-center gap-1.5 font-bold py-2 px-3 rounded-xl text-xs sm:text-sm text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-400/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                                     title="Delete all artworks from the gallery"
                                 >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                     </svg>
-                                    <span>{isDeletingAll ? 'Deleting All…' : 'Delete All'}</span>
+                                    <span>{isDeletingAll ? 'Deleting…' : 'Delete All'}</span>
                                 </button>
 
-                                {/* Toggle Upload button */}
+                                {/* Upload button */}
                                 <button
                                     onClick={() => setShowUpload(v => !v)}
-                                    className="flex items-center gap-1.5 font-bold py-2 px-4 sm:px-5 rounded-xl text-xs sm:text-sm text-white transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    className="flex items-center gap-1.5 font-bold py-2 px-4 rounded-xl text-xs sm:text-sm text-white transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md"
                                     style={{
                                         background: showUpload
                                             ? 'rgba(255,255,255,0.08)'
                                             : 'linear-gradient(135deg,#ec4899,#a855f7)',
-                                        boxShadow: showUpload ? 'none' : '0 0 15px rgba(168,85,247,0.4)'
                                     }}
                                 >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                         {showUpload
                                             ? <line x1="18" y1="6" x2="6" y2="18"/>
                                             : <><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>}
                                     </svg>
-                                    <span>{showUpload ? 'Cancel' : 'Upload Artwork'}</span>
+                                    <span>{showUpload ? 'Cancel' : 'Upload'}</span>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Inline FileUploadZone — direct Cloudinary REST upload */}
+                        {/* Inline FileUploadZone */}
                         {showUpload && (
                             <FileUploadZone
                                 cloudName={CLOUD_NAME}
@@ -641,7 +802,7 @@ function GalleryApp() {
                     </motion.div>
                 )}
 
-                {/* ── Featured (pinned) row — horizontal scroll on mobile ─────── */}
+                {/* ── Featured (pinned) row ────────────────────────────────────── */}
                 {sortedImages.filter(img => img.pinned).length > 0 && (
                     <div className="mb-8">
                         <p className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -660,6 +821,8 @@ function GalleryApp() {
                                         onUpdatePrice={handleUpdatePrice}
                                         onUpdatePrintUrl={handleUpdatePrintUrl}
                                         isNewestRecent={img.id === newestRecentId}
+                                        activeDiscount={activeDiscount}
+                                        customCatalog={customCatalog}
                                     />
                                 </div>
                             ))}
@@ -682,6 +845,8 @@ function GalleryApp() {
                                     onUpdatePrice={handleUpdatePrice}
                                     onUpdatePrintUrl={handleUpdatePrintUrl}
                                     isNewestRecent={img.id === newestRecentId}
+                                    activeDiscount={activeDiscount}
+                                    customCatalog={customCatalog}
                                 />
                             </div>
                         ))}
@@ -695,21 +860,21 @@ function GalleryApp() {
                         </svg>
                         <p className="text-slate-500 text-lg">No artworks yet</p>
                         {isAdmin
-                            ? <p className="text-slate-600 text-sm">Use the "Upload New Artwork" button above to add your first piece.</p>
+                            ? <p className="text-slate-600 text-sm">Use the "Upload" button above to add your first piece.</p>
                             : <p className="text-slate-600 text-sm">Check back soon — the artist is preparing the collection.</p>
                         }
                     </div>
                 )}
             </main>
 
-            {/* Bulk Price Edit Modal (Admin) */}
+            {/* ── Bulk Price Edit Modal (Admin) ───────────────────────────────── */}
             {showBulkPriceModal && (
                 <div 
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
                     onClick={() => setShowBulkPriceModal(false)}
                 >
                     <div 
-                        className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative"
+                        className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative max-h-[90vh] overflow-y-auto"
                         onClick={e => e.stopPropagation()}
                     >
                         <button
@@ -719,15 +884,15 @@ function GalleryApp() {
                             ✕
                         </button>
 
-                        <h3 className="text-xl font-bold text-white mb-2">Set Price for All Artworks</h3>
-                        <p className="text-xs sm:text-sm text-slate-400 mb-5 leading-relaxed">
-                            This will update the base price of all <strong className="text-cyan-300">{images.length} artworks</strong> in the gallery. (Color variants like Navy Blue will add their standard offset).
+                        <h3 className="text-xl font-bold text-white mb-1">Set Prices for All Artworks</h3>
+                        <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                            Configure the base price for White and individual color offsets across all <strong className="text-cyan-300">{images.length} artworks</strong>.
                         </p>
 
                         <form onSubmit={handleBulkUpdatePrice} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                                    Base Price (White, Black, Grey Melange) — INR ₹
+                                    Base Price (White) — INR ₹
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
@@ -743,7 +908,35 @@ function GalleryApp() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Black (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={bulkBlackOffsetVal}
+                                        onChange={e => setBulkBlackOffsetVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Grey Melange (+₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={bulkGreyOffsetVal}
+                                        onChange={e => setBulkGreyOffsetVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none focus:border-cyan-400"
+                                        placeholder="0"
+                                    />
+                                </div>
+
                                 <div>
                                     <label className="block text-[11px] font-bold text-blue-300 uppercase tracking-wider mb-1">
                                         Navy Blue (+₹)
@@ -789,8 +982,16 @@ function GalleryApp() {
 
                             <div className="bg-slate-800/80 rounded-2xl p-3.5 border border-white/10 space-y-1.5 text-xs">
                                 <div className="flex justify-between text-slate-300">
-                                    <span>White / Black / Grey:</span>
+                                    <span>White:</span>
                                     <span className="font-bold text-white">₹{Number(bulkPriceVal) || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-slate-300">
+                                    <span>Black:</span>
+                                    <span className="font-bold text-white">₹{(Number(bulkPriceVal) || 0) + (Number(bulkBlackOffsetVal) || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-slate-300">
+                                    <span>Grey Melange:</span>
+                                    <span className="font-bold text-white">₹{(Number(bulkPriceVal) || 0) + (Number(bulkGreyOffsetVal) || 0)}</span>
                                 </div>
                                 <div className="flex justify-between text-blue-300">
                                     <span>Navy Blue:</span>
@@ -810,7 +1011,7 @@ function GalleryApp() {
                                 <button
                                     type="button"
                                     onClick={() => setShowBulkPriceModal(false)}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                    className="px-4 py-2 text-sm font-semibold text-slate-400 hover:text-white"
                                 >
                                     Cancel
                                 </button>
@@ -820,6 +1021,289 @@ function GalleryApp() {
                                     className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-all shadow-lg disabled:opacity-50 cursor-pointer"
                                 >
                                     {isProcessingBulk ? 'Updating All…' : 'Apply to All Artworks'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Global Store Discount Modal (Admin) ─────────────────────────── */}
+            {showDiscountModal && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    onClick={() => setShowDiscountModal(false)}
+                >
+                    <div 
+                        className="bg-slate-900 border border-purple-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setShowDiscountModal(false)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-white text-lg font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30 uppercase">
+                                Global Store Discount
+                            </span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Set Storewide Discount</h3>
+                        <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                            Applies a percentage discount across all artworks in the gallery. Shows strikethrough original prices and updates Razorpay checkout automatically.
+                        </p>
+
+                        {isDiscountActive && (
+                            <div className="mb-5 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-4 flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-bold text-emerald-300">Discount Currently Active</p>
+                                    <p className="text-sm font-extrabold text-white">{activeDiscount.discountPercent}% OFF • {discountDaysLeft} day(s) left</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveDiscount}
+                                    disabled={isProcessingDiscount}
+                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
+                                >
+                                    Cancel Discount
+                                </button>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleApplyDiscount} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                                    Discount Percentage (1% – 90%)
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="90"
+                                        value={discountPercentVal}
+                                        onChange={e => setDiscountPercentVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-4 py-2.5 text-white font-bold text-base focus:outline-none focus:border-purple-400 pr-10"
+                                        placeholder="15"
+                                        autoFocus
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-300 font-bold text-lg">%</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                                    Timeframe Duration (in Days)
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="365"
+                                        value={discountDaysVal}
+                                        onChange={e => setDiscountDaysVal(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-4 py-2.5 text-white font-bold text-base focus:outline-none focus:border-purple-400 pr-16"
+                                        placeholder="7"
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">Days</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-800/80 rounded-2xl p-3.5 border border-white/10 text-xs space-y-1 text-slate-300">
+                                <p className="font-semibold text-white">Live Sample Preview:</p>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span>Regular ₹900 T-Shirt:</span>
+                                    <span className="font-bold text-emerald-400">
+                                        ₹{Math.max(1, Math.round(900 * (1 - (Number(discountPercentVal) || 0) / 100)))}
+                                        <span className="text-slate-500 line-through ml-1.5">₹900</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDiscountModal(false)}
+                                    className="px-4 py-2 text-sm font-semibold text-slate-400 hover:text-white"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isProcessingDiscount}
+                                    className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-950 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-300 hover:to-pink-300 transition-all shadow-lg disabled:opacity-50 cursor-pointer"
+                                >
+                                    {isProcessingDiscount ? 'Saving…' : 'Apply Discount'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Multi-Product Catalog Modal (Admin) ─────────────────────────── */}
+            {showCatalogModal && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    onClick={() => setShowCatalogModal(false)}
+                >
+                    <div 
+                        className="bg-slate-900 border border-cyan-500/30 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setShowCatalogModal(false)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-white text-lg font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"
+                        >
+                            ✕
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 uppercase">
+                                Store Product Formats
+                            </span>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Manage Store Products</h3>
+                        <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+                            Add or enable product categories for Qikink DTG printing. When 2 or more products are active, customers choose their preferred apparel before customizing!
+                        </p>
+
+                        {/* Existing Products List */}
+                        <div className="mb-6 space-y-2.5">
+                            <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">Active Store Products:</p>
+                            {(customCatalog || window.DEFAULT_PRODUCTS || []).map(p => (
+                                <div key={p.id} className="bg-slate-800/80 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-bold text-white">{p.name}</p>
+                                        <p className="text-[11px] text-slate-400">SKU Prefix: <strong className="text-cyan-300 font-mono">{p.skuPrefix}</strong> • Base Price: ₹{p.basePrice || 900}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleToggleProduct(p.id, p.active !== false)}
+                                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                                            p.active !== false
+                                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 hover:bg-red-500/20 hover:text-red-300 hover:border-red-400/30'
+                                                : 'bg-slate-700 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-300'
+                                        }`}
+                                    >
+                                        {p.active !== false ? 'Active ✓' : 'Disabled'}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add New Product Form */}
+                        <form onSubmit={handleAddProduct} className="space-y-4 pt-4 border-t border-white/10">
+                            <h4 className="text-sm font-extrabold text-white flex items-center gap-1.5">
+                                <span>+ Add New Apparel Product</span>
+                            </h4>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Product Title
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Classic Crew Neck T-Shirt"
+                                        value={newProductName}
+                                        onChange={e => setNewProductName(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-400"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Qikink SKU Prefix (Alphanumeric)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. US21, UC22, UH32"
+                                        value={newProductSkuPrefix}
+                                        onChange={e => setNewProductSkuPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white text-xs font-mono uppercase focus:outline-none focus:border-cyan-400"
+                                    />
+                                    <p className="text-[9px] text-slate-400 mt-0.5">Constraint: Max 8 letters/numbers</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Base Price (INR ₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={newProductBasePrice}
+                                        onChange={e => setNewProductBasePrice(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-cyan-400"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                                        Product Spec / Fabric
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 100% Combed Cotton • 180 GSM"
+                                        value={newProductSpec}
+                                        onChange={e => setNewProductSpec(e.target.value)}
+                                        className="w-full bg-slate-800 border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-400"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Color Selection for New Product */}
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                                    Select Available Colors for this Product:
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {(window.PRODUCT_COLORS || []).map(c => {
+                                        const isChecked = newProductColors.includes(c.id);
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={c.id}
+                                                onClick={() => {
+                                                    setNewProductColors(prev => 
+                                                        prev.includes(c.id) 
+                                                            ? (prev.length > 1 ? prev.filter(x => x !== c.id) : prev) 
+                                                            : [...prev, c.id]
+                                                    );
+                                                }}
+                                                className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                                                    isChecked 
+                                                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-sm' 
+                                                        : 'bg-slate-800 text-slate-400 border-white/10'
+                                                }`}
+                                            >
+                                                <span className="w-3 h-3 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: c.hex }} />
+                                                <span>{c.shortName || c.name}</span>
+                                                <span className="text-[10px]">{isChecked ? '✓' : '+'}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCatalogModal(false)}
+                                    className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isProcessingCatalog}
+                                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-all shadow-lg disabled:opacity-50 cursor-pointer"
+                                >
+                                    {isProcessingCatalog ? 'Adding…' : 'Save Product to Store'}
                                 </button>
                             </div>
                         </form>

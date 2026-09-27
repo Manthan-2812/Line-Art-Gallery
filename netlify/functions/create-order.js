@@ -22,6 +22,8 @@ const defaultTshirtPrice = Number(process.env.PRICE_TSHIRT || process.env.PRICE_
 async function getPriceForSku(sku, artId, printSide) {
     if (!sku || typeof sku !== 'string') return null;
     let basePrice = defaultTshirtPrice;
+    let blackOffset = 0;
+    let greyOffset = 0;
     let navyOffset = 50;
     let royalBlueOffset = 50;
     let redOffset = 50;
@@ -35,6 +37,8 @@ async function getPriceForSku(sku, artId, printSide) {
                     basePrice = Number(data.price);
                 }
                 const legacy = (data.blueOffset !== undefined && !isNaN(Number(data.blueOffset))) ? Number(data.blueOffset) : 50;
+                blackOffset = (data.blackOffset !== undefined && !isNaN(Number(data.blackOffset))) ? Number(data.blackOffset) : 0;
+                greyOffset = (data.greyOffset !== undefined && !isNaN(Number(data.greyOffset))) ? Number(data.greyOffset) : 0;
                 navyOffset = (data.navyOffset !== undefined && !isNaN(Number(data.navyOffset))) ? Number(data.navyOffset) : legacy;
                 royalBlueOffset = (data.royalBlueOffset !== undefined && !isNaN(Number(data.royalBlueOffset))) ? Number(data.royalBlueOffset) : legacy;
                 redOffset = (data.redOffset !== undefined && !isNaN(Number(data.redOffset))) ? Number(data.redOffset) : legacy;
@@ -46,18 +50,45 @@ async function getPriceForSku(sku, artId, printSide) {
 
     const skuUpper = sku.toUpperCase();
     let colorOffset = 0;
-    if (skuUpper.includes('-NB-') || skuUpper.startsWith('MVNHS-NB')) {
+    if (skuUpper.includes('-NB-') || skuUpper.endsWith('-NB')) {
         colorOffset = navyOffset;
-    } else if (skuUpper.includes('-RB-') || skuUpper.startsWith('MVNHS-RB')) {
+    } else if (skuUpper.includes('-RB-') || skuUpper.endsWith('-RB')) {
         colorOffset = royalBlueOffset;
-    } else if (skuUpper.includes('-RD-') || skuUpper.startsWith('MVNHS-RD')) {
+    } else if (skuUpper.includes('-RD-') || skuUpper.endsWith('-RD')) {
         colorOffset = redOffset;
+    } else if (skuUpper.includes('-BK-') || skuUpper.endsWith('-BK')) {
+        colorOffset = blackOffset;
+    } else if (skuUpper.includes('-GM-') || skuUpper.endsWith('-GM')) {
+        colorOffset = greyOffset;
     }
 
     const printOffset = printSide === 'both' ? 200 : 0;
+    const grossPrice = basePrice + colorOffset + printOffset;
 
-    if (sku.startsWith('MVnHs-') || sku === 'FRAME_11X14') {
-        return basePrice + colorOffset + printOffset;
+    // Check active storewide / product discounts
+    let discountPercent = 0;
+    try {
+        const discDoc = await db.collection('settings').doc('discounts').get();
+        if (discDoc.exists) {
+            const discData = discDoc.data() || {};
+            if (discData.active && discData.expiresAt && Date.now() < discData.expiresAt) {
+                const appliesTo = discData.appliesToProduct || 'ALL';
+                if (appliesTo === 'ALL' || skuUpper.startsWith(appliesTo.toUpperCase())) {
+                    discountPercent = Math.min(90, Math.max(0, Number(discData.discountPercent) || 0));
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[create-order] Discount lookup error:', e && e.message);
+    }
+
+    const finalPrice = discountPercent > 0
+        ? Math.max(1, Math.round(grossPrice * (1 - discountPercent / 100)))
+        : grossPrice;
+
+    // Validate valid SKU format
+    if (sku.includes('-') || sku === 'FRAME_11X14') {
+        return finalPrice;
     }
     return null;
 }

@@ -54,7 +54,7 @@ async function getQikinkToken() {
  *
  * @returns {Promise<{ qikinkOrderId: string }>}
  */
-async function submitToQikink({ orderNumber, printUrl, email, amountInr, shipping, sku: itemSku, quantity, printSide }) {
+async function submitToQikink({ orderNumber, printUrl, email, amountInr, shipping, sku: itemSku, quantity, printSide, artName }) {
     const base      = process.env.QIKINK_BASE_URL || 'https://sandbox.qikink.com';
     const clientId  = process.env.QIKINK_CLIENT_ID;
     const token     = await getQikinkToken();
@@ -67,7 +67,12 @@ async function submitToQikink({ orderNumber, printUrl, email, amountInr, shippin
 
     // QikInk order_number max length is 15 chars
     const safeOrderNo = String(orderNumber || 'ORD' + Date.now()).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
-    const designCode  = 'ART_' + Date.now().toString().slice(-8);
+    
+    // Build human-readable unique design code with artwork name (max 24 chars to stay safely under QikInk's 25-char limit)
+    const cleanArt = String(artName || '').trim().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 12);
+    const suffix   = Date.now().toString().slice(-6);
+    const baseDesignCode = cleanArt ? `ART_${cleanArt}_${suffix}` : `ART_${Date.now().toString().slice(-8)}`;
+    const designCode = baseDesignCode.slice(0, 20);
 
     // Build QikInk designs array (Single Front vs Double Front & Back)
     const designs = isDouble ? [
@@ -124,7 +129,6 @@ async function submitToQikink({ orderNumber, printUrl, email, amountInr, shippin
         shipping_address: {
             first_name:   firstName,
             last_name:    lastName,
-            company:      'Line and Layer Gallery\nWebsite: line-art-gallery.netlify.app',
             address1:     sh.address1 || '',
             address2:     sh.address2 || '',
             phone:        sh.phone    || '',

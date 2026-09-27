@@ -233,10 +233,10 @@
         }
 
         const variant = (window.PRODUCT_VARIANTS || []).find(v => v.sku === sku);
-        const vLabel  = variant ? variant.label : (color && size ? `${color} — Size ${size}` : 'T-Shirt Print');
-        const vSpec   = printSide === 'both' 
+        const vLabel  = q.get('vLabel') || (variant ? variant.label : (color && size ? `${color} — Size ${size}` : 'Apparel Print'));
+        const vSpec   = q.get('vSpec') || (printSide === 'both' 
             ? '180 GSM Cotton • Double-Sided (Front & Back) (+₹200)' 
-            : (variant ? variant.spec : '180 GSM Cotton • Front DTG Print');
+            : (variant ? variant.spec : '100% Combed Cotton • Front DTG Print'));
 
         let clerkUserId = '';
         let addressData = null;

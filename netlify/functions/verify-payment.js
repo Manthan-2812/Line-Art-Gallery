@@ -137,7 +137,8 @@ exports.handler = async (event) => {
                     shipping,
                     sku:         notes.sku      || '',
                     quantity:    quantity,
-                    printSide:   printSide
+                    printSide:   printSide,
+                    artName:     notes.artName  || ''
                 });
                 await ref.update({
                     fulfillment:       'submitted',
@@ -165,7 +166,8 @@ exports.handler = async (event) => {
                         shipping:    snap.shipping || {},
                         sku:         snap.sku || '',
                         quantity:    snap.quantity || 1,
-                        printSide:   snap.printSide || 'front'
+                        printSide:   snap.printSide || 'front',
+                        artName:     snap.artName || ''
                     });
                     await ref.update({
                         fulfillment:       'submitted',

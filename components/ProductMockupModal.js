@@ -64,6 +64,15 @@ function ProductMockupModal({ isOpen, onClose, onProceed, artwork, selectedColor
             collarBorder: '#f87171',
             textColor: '#f8fafc',
             tagColor: '#fecaca'
+        },
+        Br: {
+            name: 'Earthy Brown',
+            shirtBg: '#78350f',
+            shirtBorder: '#92400e',
+            collarColor: '#92400e',
+            collarBorder: '#b45309',
+            textColor: '#fef3c7',
+            tagColor: '#fde68a'
         }
     };
 
