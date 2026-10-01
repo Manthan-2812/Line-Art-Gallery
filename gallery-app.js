@@ -91,8 +91,7 @@ function GalleryTitle() {
 }
 
 const ADMIN_EMAILS = [
-    'manthanparekh9d@gmail.com',
-    'lineartgallery28@gmail.com'
+    'manthanparekh9d@gmail.com'
 ];
 
 function GalleryApp() {
@@ -225,7 +224,9 @@ function GalleryApp() {
         window.__clerkReady.then((clerk) => {
             const syncUser = async () => {
                 if (clerk.user) {
-                    const emails = (clerk.user.emailAddresses || []).map(e => (e.emailAddress || '').toLowerCase());
+                    const emails = (clerk.user.emailAddresses || [])
+                        .filter(e => e.verification && e.verification.status === 'verified')
+                        .map(e => (e.emailAddress || '').toLowerCase());
                     const isAdm = emails.some(e => ADMIN_EMAILS.includes(e));
                     setIsAdmin(isAdm);
 

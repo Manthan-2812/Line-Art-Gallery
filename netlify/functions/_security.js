@@ -65,7 +65,56 @@ function secureJson(statusCode, obj, additionalHeaders = {}) {
     };
 }
 
+const { createClerkClient, verifyToken } = require('@clerk/backend');
+
+const ADMIN_EMAILS = [
+    'manthanparekh9d@gmail.com'
+];
+
+/**
+ * Verify if the request comes from an authenticated, verified admin user via Clerk.
+ * @param {object} event - Netlify event
+ * @returns {Promise<{authorized: boolean, error?: string, userId?: string, email?: string}>}
+ */
+async function verifyAdminUser(event) {
+    const header = event.headers.authorization || event.headers.Authorization || '';
+    const token = header.replace('Bearer ', '').trim();
+    if (!token) {
+        return { authorized: false, error: 'Unauthorized: No authorization token provided' };
+    }
+
+    const secretKey = process.env.CLERK_SECRET_KEY;
+    if (!secretKey) {
+        return { authorized: false, error: 'Server authentication misconfigured: CLERK_SECRET_KEY missing' };
+    }
+
+    try {
+        const payload = await verifyToken(token, { secretKey });
+        const userId = payload.sub;
+
+        const clerk = createClerkClient({ secretKey });
+        const user = await clerk.users.getUser(userId);
+
+        const verifiedEmails = (user.emailAddresses || [])
+            .filter(e => e.verification && e.verification.status === 'verified')
+            .map(e => (e.emailAddress || '').toLowerCase());
+
+        const isAdmin = verifiedEmails.some(email => ADMIN_EMAILS.includes(email));
+
+        if (!isAdmin) {
+            return { authorized: false, error: 'Forbidden: User is not an authorized administrator' };
+        }
+
+        return { authorized: true, userId, email: verifiedEmails[0] };
+    } catch (err) {
+        console.error('[AdminAuth] Token/User verification failed:', err.message);
+        return { authorized: false, error: 'Unauthorized: Invalid or expired session token' };
+    }
+}
+
 module.exports = {
     checkRateLimit,
-    secureJson
+    secureJson,
+    verifyAdminUser,
+    ADMIN_EMAILS
 };

@@ -68,11 +68,11 @@ async function submitToQikink({ orderNumber, printUrl, email, amountInr, shippin
     // QikInk order_number max length is 15 chars
     const safeOrderNo = String(orderNumber || 'ORD' + Date.now()).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
     
-    // Build human-readable unique design code with artwork name (max 24 chars to stay safely under QikInk's 25-char limit)
-    const cleanArt = String(artName || '').trim().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 12);
+    // Build human-readable unique design code (strictly <= 20 chars total including _FR / _BK suffix)
+    const cleanArt = String(artName || '').trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
     const suffix   = Date.now().toString().slice(-6);
-    const baseDesignCode = cleanArt ? `ART_${cleanArt}_${suffix}` : `ART_${Date.now().toString().slice(-8)}`;
-    const designCode = baseDesignCode.slice(0, 20);
+    const baseDesignCode = cleanArt ? `A_${cleanArt}_${suffix}` : `A_${suffix}`;
+    const designCode = baseDesignCode.slice(0, 16);
 
     // Build QikInk designs array (Single Front vs Double Front & Back)
     const designs = isDouble ? [
