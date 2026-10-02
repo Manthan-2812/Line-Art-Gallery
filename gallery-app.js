@@ -287,27 +287,32 @@ function GalleryApp() {
     };
 
     const handleDelete = (id) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         if (!confirm('Delete this artwork?')) return;
         deleteImageFromFirebase(id)
             .catch(err => console.error('[Firebase] delete failed:', err));
     };
 
     const handleUploaded = (newImg) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         addImageToFirebase({ ...newImg, pinned: false, addedAt: Date.now() })
             .catch(err => console.error('[Firebase] add failed:', err));
     };
 
     const handlePin = (id, currentPinned) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         updateImageInFirebase(id, { pinned: !currentPinned })
             .catch(err => console.error('[Firebase] pin failed:', err));
     };
     
     const handleRename = (id, newName) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         updateImageInFirebase(id, { name: newName })
             .catch(err => console.error('[Firebase] rename failed:', err));
     };
 
     const handleUpdatePrice = (id, newPrice, offsets) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         const updateObj = { price: Number(newPrice) };
         if (typeof offsets === 'object' && offsets !== null) {
             if (offsets.blackOffset !== undefined) updateObj.blackOffset = Number(offsets.blackOffset);
@@ -327,12 +332,14 @@ function GalleryApp() {
     };
 
     const handleUpdatePrintUrl = (id, newPrintUrl) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         const cleanUrl = (newPrintUrl && typeof newPrintUrl === 'string') ? newPrintUrl.trim() : null;
         updateImageInFirebase(id, { printUrl: cleanUrl || null })
             .catch(err => console.error('[Firebase] update printUrl failed:', err));
     };
 
     const handleDeleteAll = async () => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         if (images.length === 0) {
             alert('No artworks to delete.');
             return;
@@ -356,6 +363,7 @@ function GalleryApp() {
 
     // Bulk update price for all artworks — admin only
     const handleBulkUpdatePrice = async (e) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         if (e && e.preventDefault) e.preventDefault();
         const parsedPrice = Number(bulkPriceVal);
         const parsedBlack = Number(bulkBlackOffsetVal);
@@ -404,6 +412,7 @@ function GalleryApp() {
 
     // Apply Global Store Discount
     const handleApplyDiscount = async (e) => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         if (e && e.preventDefault) e.preventDefault();
         const pct = Number(discountPercentVal);
         const days = Number(discountDaysVal);
@@ -440,6 +449,7 @@ function GalleryApp() {
 
     // Remove Global Store Discount
     const handleRemoveDiscount = async () => {
+        if (!isAdmin) { alert('Unauthorized action'); return; }
         if (!confirm('Remove and cancel the active store discount? Prices will revert to original immediately.')) return;
         setIsProcessingDiscount(true);
         try {

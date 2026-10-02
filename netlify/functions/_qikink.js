@@ -129,6 +129,7 @@ async function submitToQikink({ orderNumber, printUrl, email, amountInr, shippin
         shipping_address: {
             first_name:   firstName,
             last_name:    lastName,
+            company:      'Line - Art - Gallery \n line-art-gallery.netlify.app',
             address1:     sh.address1 || '',
             address2:     sh.address2 || '',
             phone:        sh.phone    || '',

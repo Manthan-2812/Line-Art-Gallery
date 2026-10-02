@@ -58,22 +58,20 @@ function ClerkAuthButton({ compact }) {
     const openSignUp = () => window.Clerk && window.Clerk.openSignUp({ appearance: window.CLERK_APPEARANCE });
 
     return (
-        <div className="flex items-center gap-2" data-name="ClerkAuthButton">
+        <div className="flex items-center gap-1.5 sm:gap-2" data-name="ClerkAuthButton">
             <button
                 onClick={openSignIn}
-                className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-white border border-white/15 hover:border-white/30 rounded-lg px-2.5 sm:px-3 py-1.5 transition-all"
+                className="text-[11px] sm:text-xs md:text-sm font-semibold text-slate-200 hover:text-white border border-white/15 hover:border-white/30 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 transition-all cursor-pointer whitespace-nowrap"
             >
                 Sign In
             </button>
-            {!compact && (
-                <button
-                    onClick={openSignUp}
-                    className="text-xs sm:text-sm font-semibold text-white rounded-lg px-2.5 sm:px-3 py-1.5 transition-all"
-                    style={{ background: 'linear-gradient(135deg,#06b6d4,#818cf8)' }}
-                >
-                    Sign Up
-                </button>
-            )}
+            <button
+                onClick={openSignUp}
+                className="text-[11px] sm:text-xs md:text-sm font-semibold text-white rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 transition-all cursor-pointer whitespace-nowrap shadow-sm"
+                style={{ background: 'linear-gradient(135deg,#06b6d4,#818cf8)' }}
+            >
+                Sign Up
+            </button>
         </div>
     );
 }
