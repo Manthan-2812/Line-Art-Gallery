@@ -90,9 +90,8 @@ function GalleryTitle() {
     );
 }
 
-const ADMIN_EMAILS = [
-    'manthanparekh9d@gmail.com'
-];
+// Admin emails are intentionally NOT stored client-side.
+// Admin status is resolved server-side via /api/check-admin.
 
 function GalleryApp() {
     const { useState, useEffect, useRef } = React;
@@ -224,23 +223,27 @@ function GalleryApp() {
         window.__clerkReady.then((clerk) => {
             const syncUser = async () => {
                 if (clerk.user) {
-                    const emails = (clerk.user.emailAddresses || [])
-                        .filter(e => e.verification && e.verification.status === 'verified')
-                        .map(e => (e.emailAddress || '').toLowerCase());
-                    const isAdm = emails.some(e => ADMIN_EMAILS.includes(e));
-                    setIsAdmin(isAdm);
-
                     try {
                         const token = await clerk.session.getToken();
-                        const res = await fetch('/api/get-user-likes', {
+
+                        // ── Admin status: resolved server-side (email never in client JS) ──
+                        const adminRes = await fetch('/api/check-admin', {
                             headers: { 'Authorization': `Bearer ${token}` }
                         });
-                        const data = await res.json();
-                        const s = new Set(data.likedArtworks || []);
+                        const adminData = await adminRes.json();
+                        setIsAdmin(adminData.isAdmin === true);
+
+                        // ── User likes ────────────────────────────────────────────────────
+                        const likesRes = await fetch('/api/get-user-likes', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const likesData = await likesRes.json();
+                        const s = new Set(likesData.likedArtworks || []);
                         window.__userLikedIds = s;
                         setUserLikes(s);
                     } catch (e) {
-                        console.error('Failed to load user likes:', e);
+                        console.error('Failed to sync user session:', e);
+                        setIsAdmin(false);
                     }
                 } else {
                     setIsAdmin(false);

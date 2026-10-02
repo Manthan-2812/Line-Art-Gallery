@@ -5,9 +5,8 @@
 // Supports: Brand, About Artist, Contact for Query (logged-in), My Orders, Address, PWA install.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ADMIN_EMAILS = [
-    'manthanparekh9d@gmail.com'
-];
+// Admin status is resolved server-side via /api/check-admin.
+// No admin emails are stored client-side.
 
 function Navbar({ onAboutClick, onBrandClick }) {
     const { useState, useEffect, useRef } = React;
@@ -102,10 +101,20 @@ function Navbar({ onAboutClick, onBrandClick }) {
             alert('To install on Android or Desktop:\nOpen your browser menu (⋮ or Share) and tap "Install app" or "Add to Home screen".');
         }
     };
-
-    // Check if the current logged-in Clerk user is the admin
-    const userEmails = user ? (user.emailAddresses || []).map(e => (e.emailAddress || '').toLowerCase()) : [];
-    const isClerkAdmin = userEmails.some(e => ADMIN_EMAILS.includes(e));
+    // Admin status: resolved server-side (email never in client JS)
+    const [isClerkAdmin, setIsClerkAdmin] = useState(false);
+    useEffect(() => {
+        if (!isSignedIn || !window.Clerk || !window.Clerk.session) {
+            setIsClerkAdmin(false);
+            return;
+        }
+        window.Clerk.session.getToken().then(token =>
+            fetch('/api/check-admin', { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(r => r.json())
+                .then(d => setIsClerkAdmin(d.isAdmin === true))
+                .catch(() => setIsClerkAdmin(false))
+        );
+    }, [isSignedIn]);
 
     // Fetch user's address when they sign in
     useEffect(() => {

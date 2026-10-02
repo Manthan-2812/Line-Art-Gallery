@@ -116,7 +116,6 @@ FIREBASE_CLIENT_EMAIL=...
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
 # ── Store Defaults ──
-ADMIN_EMAIL=manthanparekh9d@gmail.com
 PRICE_TSHIRT=900
 ```
 
